@@ -1,4 +1,4 @@
-#include "Config.h"
+#include "config.h"
 
 HorizonalExpress::HorizonalExpress(int width) {
     this->width = width;

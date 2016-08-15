@@ -2,7 +2,7 @@
 // Created by 黄金 on 2016/8/2.
 //
 
-#include "AutoWork.h"
+#include "processor.h"
 #include "config.h"
 #include <numeric>
 #include <map>
@@ -13,11 +13,11 @@ void show(string name, Mat image) {
     imshow(name, image);
     int k = waitKey(0);
     if (k == 27) {
-        cv::destroyWindow(name);
+        destroyWindow(name);
     } else if (k == (int)'s') {
         printf("save");
         imwrite("/Users/hj/Downloads/save.jpg", image);
-        cv::destroyWindow(name);
+        destroyWindow(name);
     }
 }
 
@@ -80,17 +80,17 @@ bool comp(const vector<Point> key1, const vector<Point> key2) {
     return contourArea(key1) > contourArea(key2);
 }
 
-void AutoWork::init(const char *path) {
+void Processor::init(const char *path) {
 
-    api = new TessBaseAPI();
+    api = new tesseract::TessBaseAPI();
     api->Init(NULL, "eng");
     api->SetVariable("tessedit_char_blacklist", ":,\".-");
     api->SetVariable("tessedit_char_whitelist", "1234567890");
-    api->SetPageSegMode(PSM_SINGLE_LINE);
+    api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
 
 }
 
-Mat AutoWork::locate_express(Mat src) {
+Mat Processor::locate_express(Mat src) {
     Mat gray, thr, med, last;
 
     vector<Mat> channels;
@@ -125,7 +125,7 @@ Mat AutoWork::locate_express(Mat src) {
     return area;
 }
 
-string AutoWork::extract_bar(Mat *obj) {
+string Processor::extract_bar(Mat *obj) {
     Mat thr, med, last;
 
     threshold(*obj, thr, 90, 255, THRESH_BINARY_INV);
@@ -201,7 +201,7 @@ string AutoWork::extract_bar(Mat *obj) {
     return recognize_bar(bar);
 }
 
-string AutoWork::extract_phone(Mat *obj) {
+string Processor::extract_phone(Mat *obj) {
     uint cols = (uint)obj->cols;
     ConfigFactory *factory = new ConfigFactory(); 
     Config *config = factory->createConfig(VERTICAL, obj->cols);
@@ -258,7 +258,7 @@ string AutoWork::extract_phone(Mat *obj) {
 
 
 
-string AutoWork::recognize_bar(Mat area) {
+string Processor::recognize_bar(Mat area) {
     
     Mat bar;
 
@@ -267,14 +267,14 @@ string AutoWork::recognize_bar(Mat area) {
     int width = bar.cols;
     int height = bar.rows;
 
-    Image image(width, height, "Y800", bar.data, width*height);
+    zbar::Image image(width, height, "Y800", bar.data, width*height);
 
-    ImageScanner scanner;
-    scanner.set_config(ZBAR_NONE, ZBAR_CFG_ENABLE, 1);
+    zbar::ImageScanner scanner;
+    scanner.set_config(zbar::ZBAR_NONE, zbar::ZBAR_CFG_ENABLE, 1);
 
     scanner.scan(image);
 
-    Image::SymbolIterator symbol = image.symbol_begin();
+    zbar::Image::SymbolIterator symbol = image.symbol_begin();
 
     if (symbol != image.symbol_end()) {
         string data = symbol->get_data();
@@ -284,7 +284,7 @@ string AutoWork::recognize_bar(Mat area) {
     return "NO";
 }
 
-string AutoWork::recognize_num(Mat image, bool isPhone) {
+string Processor::recognize_num(Mat image, bool isPhone) {
 
     string outText = "";
     vector<float> confidence;

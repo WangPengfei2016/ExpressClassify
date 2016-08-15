@@ -2,8 +2,8 @@
 // Created by 黄金 on 2016/8/2.
 //
 
-#ifndef AUTOCLASSIFY_AUTOWORK_H
-#define AUTOCLASSIFY_AUTOWORK_H
+#ifndef PROCESSER_H
+#define PROCESSER_H
 
 #include <zbar.h>
 #include <opencv2/core/core.hpp>
@@ -14,10 +14,10 @@
 
 using namespace std;
 using namespace cv;
-using namespace tesseract;
-using namespace zbar;
+// using namespace tesseract;
+// using namespace zbar;
 
-class AutoWork {
+class Processor {
 
 public:
     // tesseract 初始化
@@ -31,7 +31,7 @@ public:
 
 private:
     // tesseract 识别程序接口
-    TessBaseAPI *api;
+    tesseract::TessBaseAPI *api;
     // 识别条码程序
     string recognize_bar(Mat area);
     // 识别手机号程序
@@ -39,4 +39,4 @@ private:
 };
 
 
-#endif //AUTOCLASSIFY_AUTOWORK_H
+#endif //PROCESSER_H

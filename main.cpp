@@ -1,27 +1,28 @@
-#include "AutoWork.h"
 #include <iostream>
+#include "Processor.h"
 
 int main() {
 
-  Mat obj;
-  AutoWork *api;
-  api->init(NULL);
+  cv::Mat obj;
+  Processor *processor;
+  processor->init(NULL);
 
-  Mat src = imread("/Users/hj/Downloads/img/17.jpg");
+  cv::Mat src = cv::imread("/Users/hj/Downloads/img/17.jpg");
+  
   if (src.empty()) {
     cout << "no image" << endl;
     exit(0);
   }
 
-  double t = (double)getTickCount();
+  double t = (double)cv::getTickCount();
   int k = 1;
   while (k) {
-    obj = api->locate_express(src);
-    api->extract_bar(&obj);
+    obj = processor->locate_express(src);
+    processor->extract_bar(&obj);
 
-    api->extract_phone(&obj);
+    processor->extract_phone(&obj);
     k--;
   }
-  cout << ((double)getTickCount() - t) / getTickFrequency() << "sec" << endl;
+  cout << ((double)cv::getTickCount() - t) / cv::getTickFrequency() << "sec" << endl;
   return 0;
 }
