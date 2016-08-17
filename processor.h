@@ -20,8 +20,10 @@ using namespace cv;
 class Processor {
 
 public:
-    // tesseract 初始化
-    void init(const char *path);
+    // 初始化处理器
+    Processor(const char *path);
+    // 析构函数
+    ~Processor();
     // 定位面单区域
     Mat locate_express(Mat src);
     // 提取条码

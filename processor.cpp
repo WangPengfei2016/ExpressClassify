@@ -29,26 +29,40 @@ Mat rotate_img(Point center, float angle, Mat image, Size size) {
 }
 
 bool phone_classify(Mat region) {
-//    获取水平方向投影
-    int *a = new int[region.cols]();
-    int max = 0;
+    /*
+        获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值
+        记录每一行像素突变次数，取得最大值
+    */
+    int *a = new int[region.cols](), max_pixs = 0;
+    uint max_change_times, last_pix = 0, change_times = 0;
+    // 行遍历
     for (int i = 0; i < region.rows; ++i) {
         uchar *p = region.ptr<uchar>(i);
+        // 列遍历
         for (int j = 0; j < region.cols; ++j) {
             if (p[j] == 255) {
                 a[j]++;
-                if (max < a[j]) {
-                    max = a[j];
+                if (max_pixs < a[j]) {
+                    max_pixs = a[j];
                 }
             }
-
+            if (p[j] != last_pix) {
+                last_pix = p[j];
+                change_times++;
+            }
         }
+        max_change_times = change_times > max_change_times? change_times: max_change_times;
     }
-//    根据投影切割字符，判断是否包含手机号
-//    循环切割，避免字符粘连造成分割不足
+
+    // 像素突变次数大于100次，判定不是手机号
+    if (max_change_times > 100) {
+        return false;
+    }
+    // 根据投影切割字符，判断是否包含手机号
+    // 循环切割，避免字符粘连造成分割不足
     float rate = 0.05;     // 初始阈值
     while (true) {
-        int limit = max*rate;
+        int limit = max_pixs*rate;
         vector<Rect> s;
         bool isChar = false;
         int start = 0;
@@ -62,11 +76,11 @@ bool phone_classify(Mat region) {
             }
         }
 
-//        判断字符个数
+        // 判断字符个数
         if (s.size() > 9 && s.size() < 15){
             return true;
         }
-        //        阈值增长终止条件
+        // 阈值增长终止条件
         if (rate > 0.15)
             break;
         rate += 0.05;
@@ -80,7 +94,7 @@ bool comp(const vector<Point> key1, const vector<Point> key2) {
     return contourArea(key1) > contourArea(key2);
 }
 
-void Processor::init(const char *path) {
+Processor::Processor(const char *path) {
 
     api = new tesseract::TessBaseAPI();
     api->Init(NULL, "eng");
@@ -88,6 +102,11 @@ void Processor::init(const char *path) {
     api->SetVariable("tessedit_char_whitelist", "1234567890");
     api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
 
+}
+
+Processor::~Processor() {
+    api->Clear();
+    delete api;
 }
 
 Mat Processor::locate_express(Mat src) {
@@ -202,9 +221,14 @@ string Processor::extract_bar(Mat *obj) {
 }
 
 string Processor::extract_phone(Mat *obj) {
+    // 获取免单宽度
     uint cols = (uint)obj->cols;
-    ConfigFactory *factory = new ConfigFactory(); 
-    Config *config = factory->createConfig(VERTICAL, obj->cols);
+    
+    // 根据面单宽度确定寻找参数
+    ConfigFactory *factory = new ConfigFactory();
+    Config *config = obj->cols > obj->rows ? factory->createConfig(VERTICAL, obj->cols): factory->createConfig(HORIZONAL, obj->cols);
+
+    // 初步二值化，确定面单文本区域
     Mat baup, thr, med, last;
     baup = obj->clone();
     adaptiveThreshold(*obj, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
@@ -215,38 +239,43 @@ string Processor::extract_phone(Mat *obj) {
     Mat opening = getStructuringElement(MORPH_RECT, Size(cols/100, cols/200));
     morphologyEx(med, last, MORPH_OPEN, opening);
 
+    // 获取所有轮廓，根据轮廓面积排序
     vector< vector<Point> > contours;
     findContours(last, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
-
     sort(contours.begin(), contours.end(), comp);
 
     for (int i = 0; i < contours.size(); ++i) {
-        Rect like_phone = boundingRect(contours[i]);
-        
-        if (like_phone.x > 10) {
-            like_phone.x -= 10;
-            like_phone.width += 10;
+        Rect candidate_rect = boundingRect(contours[i]);
+
+        // 扩大手机号候选区域
+        if (candidate_rect.x > 10) {
+            candidate_rect.x -= 10;
+            candidate_rect.width += 10;
         }
         
         // 在原始图片中取出手机号
-        Mat phone_region(baup, like_phone);
+        Mat candidate_region(baup, candidate_rect);
 
-        if (!config->filter_region_by_shape(phone_region)) {
+        // 第一次初步过滤
+        // 调用配置过滤方法
+        if (!config->filter_region_by_shape(candidate_region)) {
             continue;
         }
 
         // 手机号区域过小时，进行插值运算，放大手机号区域
-        if (like_phone.width < 110) {
-            resize(phone_region, phone_region, Size(like_phone.width*3, like_phone.height*3), 0, 0, INTER_LANCZOS4);
+        if (candidate_rect.width < 110) {
+            resize(candidate_region, candidate_region, Size(candidate_rect.width*3, candidate_rect.height*3), 0, 0, INTER_LANCZOS4);
         }
         // 局部阈值二值化，抑制干扰
-        adaptiveThreshold(phone_region, phone_region, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 7, 15);
+        adaptiveThreshold(candidate_region, candidate_region, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 7, 15);
 
-        if (!phone_classify(phone_region.clone())) {
+        // 第二次精细过滤
+        if (!phone_classify(candidate_region.clone())) {
             continue;
         }
-
-        string num = recognize_num(phone_region);
+        
+        // 开始识别手机号
+        string num = recognize_num(candidate_region);
 
         if (num != "NO") {
             return num;

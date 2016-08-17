@@ -1,20 +1,19 @@
 #include <iostream>
-#include "Processor.h"
+#include "processor.h"
 
 int main() {
 
   cv::Mat obj;
-  Processor *processor;
-  processor->init(NULL);
+  Processor *processor = new Processor(NULL);
 
-  cv::Mat src = cv::imread("/Users/hj/Downloads/img/17.jpg");
+  Mat src = imread("/Users/hj/Downloads/img/17.jpg");
   
   if (src.empty()) {
     cout << "no image" << endl;
     exit(0);
   }
 
-  double t = (double)cv::getTickCount();
+  double t = (double)getTickCount();
   int k = 1;
   while (k) {
     obj = processor->locate_express(src);
@@ -23,6 +22,6 @@ int main() {
     processor->extract_phone(&obj);
     k--;
   }
-  cout << ((double)cv::getTickCount() - t) / cv::getTickFrequency() << "sec" << endl;
+  cout << ((double)getTickCount() - t) / getTickFrequency() << "sec" << endl;
   return 0;
 }
