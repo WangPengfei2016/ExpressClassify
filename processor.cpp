@@ -4,8 +4,6 @@
 
 #include "processor.h"
 #include "config.h"
-#include <numeric>
-#include <map>
 #include <iostream>
 
 void show(string name, Mat image) {
@@ -29,10 +27,10 @@ Mat rotate_img(Point center, float angle, Mat image, Size size) {
 }
 
 bool phone_classify(Mat region) {
-    /*
+    /********
         获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值
         记录每一行像素突变次数，取得最大值
-    */
+    ********/
     int *a = new int[region.cols](), max_pixs = 0;
     uint max_change_times, last_pix = 0, change_times = 0;
     // 行遍历
@@ -141,7 +139,7 @@ Mat Processor::locate_express(Mat src) {
     Rect rect = boundingRect(contours[0]);
 
     Mat area(gray, rect);
-    return area;
+    return area; 
 }
 
 string Processor::extract_bar(Mat *obj) {
@@ -277,12 +275,12 @@ string Processor::extract_phone(Mat *obj) {
         // 开始识别手机号
         string num = recognize_num(candidate_region);
 
-        if (num != "NO") {
+        if (num != "") {
             return num;
         }
     }
 
-    return "NO";
+    return "";
 }
 
 
@@ -313,9 +311,10 @@ string Processor::recognize_bar(Mat area) {
     return "NO";
 }
 
-string Processor::recognize_num(Mat image, bool isPhone) {
+string Processor::recognize_num(Mat image) {
 
     string outText = "";
+    bool findPhone = false;
     vector<float> confidence;
 
     api->SetImage(image.data, image.size().width, image.size().height, image.channels(), (int)image.step1());
@@ -327,8 +326,7 @@ string Processor::recognize_num(Mat image, bool isPhone) {
     if (ri != 0) {
         do {
             float conf = ri->Confidence(level);
-
-            if (conf < 61) {
+            if (conf < 60) {
                 continue;
             }
             confidence.push_back(conf);
@@ -344,33 +342,47 @@ string Processor::recognize_num(Mat image, bool isPhone) {
 
     size_t length = outText.length();
 
-    // 判断是否是手机号
-    if ( length < 15 && length > 10) {
-        for (uint j = 0; j <= length-11; j++) {
-            size_t start = length-(11+j);
-            string out = outText.substr(start, 11);
-            if (out[0] == '1') {
-                switch (out[1]) {
-                    case '3':
-                    case '5':
-                    case '7':
-                    case '8': {
-                        double t = accumulate(confidence.begin(), confidence.end(), 0.0);
-                        if ((t/11) > 75) {
-                            cout<< out <<endl;
-                            api->Clear();
-                            return out;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                }
+    if (length > 15 || length < 11) {
+        return "NO";
+    }
+
+    size_t front;
+    for (front = 0; front < length-11; front++) {
+        if (outText[front] != '1')
+            continue;
+        if (outText[front+1] == '3' || outText[front+1] == '8') {
+            findPhone = true;
+            goto finally;
+        } else if (outText[front+1] == '5') {
+            if (outText[front+2] == '4')
+                continue;
+            findPhone = true;
+            goto finally;
+        } else if (outText[front+1] == '4') {
+            if (outText[front+2] == '5' || outText[front+2] == '7')
+                findPhone = true;
+                goto finally;
+        }
+        
+    }
+
+    finally:
+        // 清空识别数据
+        api->Clear();
+
+        float average_confidence, total = 0;
+        if (findPhone) {
+            // 计算可信度总和
+            for (size_t i = front; i < front+11; i++) {
+                total += confidence[i];
             }
         }
-
-    }
-    api->Clear();
-    return "NO";
+        // 平均可信度
+        average_confidence = total/11;
+        if (average_confidence > 75) {
+            return outText.substr(front, front+11);
+        }  else {
+            return "";
+        }
 }
 

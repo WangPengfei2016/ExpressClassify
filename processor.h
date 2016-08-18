@@ -10,12 +10,12 @@
 #include <opencv2/core/utility.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/ocl.hpp>
 #include <tesseract/baseapi.h>
 
 using namespace std;
 using namespace cv;
-// using namespace tesseract;
-// using namespace zbar;
+
 
 class Processor {
 
@@ -37,7 +37,7 @@ private:
     // 识别条码程序
     string recognize_bar(Mat area);
     // 识别手机号程序
-    string recognize_num(Mat image, bool isPhone = false);
+    string recognize_num(Mat image);
 };
 
 
