@@ -1,7 +1,3 @@
-//
-// Created by 黄金 on 2016/8/2.
-//
-
 #include "processor.h"
 #include "config.h"
 #include <iostream>
@@ -93,12 +89,12 @@ bool comp(const vector<Point> key1, const vector<Point> key2) {
 }
 
 Processor::Processor(const char *path) {
-
+    // 创建识别api
     api = new tesseract::TessBaseAPI();
-    api->Init(NULL, "eng");
-    api->SetVariable("tessedit_char_blacklist", ":,\".-");
-    api->SetVariable("tessedit_char_whitelist", "1234567890");
-    api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+    api->Init(NULL, "eng");      // 初始化识别数据路径和语言
+    api->SetVariable("tessedit_char_blacklist", ":,\".-");    // 设置识别黑名单
+    api->SetVariable("tessedit_char_whitelist", "1234567890");     // 设置识别白名单
+    api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);    // 设置识别模式为单行文本
 
 }
 
@@ -214,8 +210,7 @@ string Processor::extract_bar(Mat *obj) {
             flip(tmp, *obj, 1);
         }
     }
-
-    return recognize_bar(bar);
+    return "";
 }
 
 string Processor::extract_phone(Mat *obj) {
@@ -283,33 +278,6 @@ string Processor::extract_phone(Mat *obj) {
     return "";
 }
 
-
-
-string Processor::recognize_bar(Mat area) {
-    
-    Mat bar;
-
-    bar = area.clone();
-
-    int width = bar.cols;
-    int height = bar.rows;
-
-    zbar::Image image(width, height, "Y800", bar.data, width*height);
-
-    zbar::ImageScanner scanner;
-    scanner.set_config(zbar::ZBAR_NONE, zbar::ZBAR_CFG_ENABLE, 1);
-
-    scanner.scan(image);
-
-    zbar::Image::SymbolIterator symbol = image.symbol_begin();
-
-    if (symbol != image.symbol_end()) {
-        string data = symbol->get_data();
-        return symbol->get_data();
-    }
-
-    return "NO";
-}
 
 string Processor::recognize_num(Mat image) {
 
