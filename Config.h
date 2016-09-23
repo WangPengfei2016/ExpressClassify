@@ -26,7 +26,7 @@ class VerticalExpress: public Config {
 };
 
 class ConfigFactory {
-    
+
     public:
         Config* createConfig (enum EXPRESS type, int width) {
             if (type == HORIZONAL)
