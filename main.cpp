@@ -3,7 +3,7 @@
 
 int main() {
 
-  cv::Mat obj;
+  Mat obj;
   Processor *processor = new Processor(NULL);
 
   Mat src = imread("/Users/hj/Downloads/img/17.jpg");
@@ -13,12 +13,13 @@ int main() {
     exit(0);
   }
 
-  double t = (double)getTickCount();
+  cv::Rect rect = cv::Rect(cv::Point(10, 10), cv::Size(100, 100));
+
   int k = 1;
   while (k) {
-    processor->extract_phone(&obj)
+    processor->extract_phone(obj, rect);
     k--;
   }
-  cout << ((double)getTickCount() - t) / getTickFrequency() << "sec" << endl;
+
   return 0;
 }

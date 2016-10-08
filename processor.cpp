@@ -21,10 +21,8 @@ bool comp(const vector<Point> key1, const vector<Point> key2) {
 }
 
 bool phone_classify(Mat region) {
-    /********
-        获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值
-        记录每一行像素突变次数，取得最大值
-    ********/
+        /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
+        /* 记录每一行像素突变次数，取得最大值 */
     int *a = new int[region.cols](), max_pixs = 0;
     uint max_change_times, last_pix = 0, change_times = 0;
     // 行遍历
@@ -47,9 +45,10 @@ bool phone_classify(Mat region) {
     }
 
     // 像素突变次数大于100次，判定不是手机号
-    if (max_change_times > 100) {
+    if (max_change_times > 100 && max_change_times < 30) {
         return false;
     }
+
     // 根据投影切割字符，判断是否包含手机号
     // 循环切割，避免字符粘连造成分割不足
     float rate = 0.05;     // 初始阈值比例
@@ -85,7 +84,7 @@ bool phone_classify(Mat region) {
 Processor::Processor(const char *path) {
     // 创建识别api
     api = new tesseract::TessBaseAPI();
-    api->Init(NULL, "eng");      // 初始化识别数据路径和语言
+    api->Init(path, "eng");      // 初始化识别数据路径和语言
     api->SetVariable("tessedit_char_blacklist", ":,\".-");    // 设置识别黑名单
     api->SetVariable("tessedit_char_whitelist", "1234567890");     // 设置识别白名单
     api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);    // 设置识别模式为单行文本
@@ -95,6 +94,7 @@ Processor::Processor(const char *path) {
 Processor::~Processor() {
     // 清除api防止内存泄漏
     api->Clear();
+    api=NULL;
     delete api;
 }
 
@@ -161,11 +161,15 @@ string Processor::extract_phone(Mat img, Rect rect) {
         }
     }
 
+    // 识别失败
     return "";
 }
 
 
 string Processor::recognize_num(Mat image) {
+    /**
+     * 手机号数字识别程序
+     **/
 
     string outText = "";
     bool findPhone = false;
@@ -173,6 +177,7 @@ string Processor::recognize_num(Mat image) {
 
     api->SetImage(image.data, image.size().width, image.size().height, image.channels(), (int)image.step1());
 
+    // 逐个符号识别，获取每一个Confidence
     tesseract::ResultIterator* ri = api->GetIterator();
     tesseract::PageIteratorLevel level = tesseract::RIL_SYMBOL;
 
@@ -192,6 +197,9 @@ string Processor::recognize_num(Mat image) {
         } while (ri->Next(level));
 
     }
+
+
+    // 根据手机号特征，判别识别结果是否为手机号
 
     size_t length = outText.length();
 
@@ -219,6 +227,8 @@ string Processor::recognize_num(Mat image) {
 
     }
 
+
+    // 识别过程结束清理
     finally:
         // 清空识别数据
         api->Clear();

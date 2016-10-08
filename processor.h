@@ -1,7 +1,6 @@
 #ifndef PROCESSER_H
 #define PROCESSER_H
 
-#include <zbar.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/utility.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -22,6 +21,7 @@ public:
     Processor(const char *path);
     // 析构函数
     ~Processor();
+
     // 提取手机号
     string extract_phone(Mat img, Rect rect);
 
