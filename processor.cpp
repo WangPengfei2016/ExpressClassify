@@ -2,6 +2,8 @@
 #include "config.h"
 #include <iostream>
 
+using namespace cv;
+
 // TODO: delete this function
 void show(string name, Mat image) {
     namedWindow(name, WINDOW_AUTOSIZE);
@@ -17,12 +19,13 @@ void show(string name, Mat image) {
 }
 
 bool comp(const vector<Point> key1, const vector<Point> key2) {
+	// 比较轮廓面积
     return contourArea(key1) > contourArea(key2);
 }
 
 bool phone_classify(Mat region) {
-        /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
-        /* 记录每一行像素突变次数，取得最大值 */
+	/* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
+	/* 记录每一行像素突变次数，取得最大值 */
     int *a = new int[region.cols](), max_pixs = 0;
     uint max_change_times, last_pix = 0, change_times = 0;
     // 行遍历
@@ -87,8 +90,8 @@ Processor::Processor(const char *path) {
     api->Init(path, "eng");      // 初始化识别数据路径和语言
     api->SetVariable("tessedit_char_blacklist", ":,\".-");    // 设置识别黑名单
     api->SetVariable("tessedit_char_whitelist", "1234567890");     // 设置识别白名单
+	api->SetVariable("save_blob_choices", "T");
     api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);    // 设置识别模式为单行文本
-
 }
 
 Processor::~Processor() {
@@ -98,19 +101,27 @@ Processor::~Processor() {
     delete api;
 }
 
-
-string Processor::extract_phone(Mat img, Rect rect) {
+/**
+ * 手机号提取函数
+ * img 面单
+ * rect 条码位置矩形
+ * type 面单类型
+**/
+string Processor::extract_phone(Mat img, Rect rect, int type) {
+	// 初始化变量
+    Mat baup, gray, thr, med, last;
     // 条码宽度
     uint cols = (uint)rect.width;
 
     // 根据面单宽度确定寻找参数
     ConfigFactory *factory = new ConfigFactory();
-    Config *config = img.cols > img.rows ? factory->createConfig(VERTICAL, img.cols): factory->createConfig(HORIZONAL, img.cols);
+	Config *config = factory->createConfig(type, rect);
 
-    // 初步二值化，确定面单文本区域
-    Mat baup, thr, med, last;
-    baup = img.clone();
-    adaptiveThreshold(img, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
+	// 切割包含手机号的区域
+	baup = config->cropy_region(img);
+
+	cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
+	adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
     Mat closing = getStructuringElement(MORPH_RECT, Size(cols/40, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
@@ -126,37 +137,38 @@ string Processor::extract_phone(Mat img, Rect rect) {
     for (int i = 0; i < contours.size(); ++i) {
         Rect candidate_rect = boundingRect(contours[i]);
 
-        // 扩大手机号候选区域
-        if (candidate_rect.x > 10) {
-            candidate_rect.x -= 10;
-            candidate_rect.width += 10;
-        }
+		// 第一次粗过滤
+		// 根据形状和面积过滤
+		if (candidate_rect.height < rect.height/8 || candidate_rect.height > rect.height) {
+			continue;
+		}
+
+		// 扩大手机号候选区域
+		if (candidate_rect.x > 10) {
+			candidate_rect.x -= 10;
+			candidate_rect.width += 10;
+		}
 
         // 在原始图片中取出手机号
-        Mat candidate_region(baup, candidate_rect);
+        Mat candidate_region(gray, candidate_rect);
 
-        // 第一次初步过滤
-        // 调用配置过滤方法
-        if (!config->filter_region_by_shape(candidate_region)) {
-            continue;
-        }
+		// 手机号区域过小时，进行插值运算，放大手机号区域
+		if (candidate_rect.width < 110) {
+			resize(candidate_region, candidate_region, Size(candidate_rect.width*3, candidate_rect.height*3), 0, 0, INTER_LANCZOS4);
+		}
 
-        // 手机号区域过小时，进行插值运算，放大手机号区域
-        if (candidate_rect.width < 110) {
-            resize(candidate_region, candidate_region, Size(candidate_rect.width*3, candidate_rect.height*3), 0, 0, INTER_LANCZOS4);
-        }
         // 局部阈值二值化，抑制干扰
         adaptiveThreshold(candidate_region, candidate_region, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 7, 15);
 
-        // 第二次精细过滤
-        if (!phone_classify(candidate_region.clone())) {
-            continue;
-        }
+        // 精细过滤
+		if (!phone_classify(candidate_region.clone())) {
+			continue;
+		}
+		show("last", candidate_region);
 
         // 开始识别手机号
         string num = recognize_num(candidate_region);
-
-        if (num != "") {
+        if (num != "NO") {
             return num;
         }
     }
@@ -176,6 +188,7 @@ string Processor::recognize_num(Mat image) {
     vector<float> confidence;
 
     api->SetImage(image.data, image.size().width, image.size().height, image.channels(), (int)image.step1());
+	api->Recognize(NULL);
 
     // 逐个符号识别，获取每一个Confidence
     tesseract::ResultIterator* ri = api->GetIterator();
@@ -208,15 +221,19 @@ string Processor::recognize_num(Mat image) {
     }
 
     size_t front;
-    for (front = 0; front < length-11; front++) {
-        if (outText[front] != '1')
-            continue;
+    for (front = 0; front <= length-11; front++) {
+		cout<< outText[front] << front <<endl;
+		if (outText[front] != '1') {
+			continue;
+		}
+
         if (outText[front+1] == '3' || outText[front+1] == '8') {
             findPhone = true;
             goto finally;
         } else if (outText[front+1] == '5') {
             if (outText[front+2] == '4')
                 continue;
+
             findPhone = true;
             goto finally;
         } else if (outText[front+1] == '4') {
@@ -242,10 +259,11 @@ string Processor::recognize_num(Mat image) {
         }
         // 平均可信度
         average_confidence = total/11;
+
         if (average_confidence > 75) {
             return outText.substr(front, front+11);
         }  else {
-            return "";
+            return "NO";
         }
 }
 

@@ -1,23 +1,23 @@
-#include <iostream>
 #include "processor.h"
+#include <iostream>
 
 int main() {
 
-  Mat obj;
   Processor *processor = new Processor(NULL);
 
-  Mat src = imread("/Users/hj/Downloads/img/17.jpg");
+  Mat src = imread("/Users/lambda/Downloads/bar.jpg");
 
   if (src.empty()) {
     cout << "no image" << endl;
     exit(0);
   }
 
-  cv::Rect rect = cv::Rect(cv::Point(10, 10), cv::Size(100, 100));
+  cv::Rect rect = cv::Rect(cv::Point(40, 255), cv::Size(350, 90));
 
   int k = 1;
   while (k) {
-    processor->extract_phone(obj, rect);
+	std::string phone = processor->extract_phone(src, rect, 1);
+	cout<< "-----phone: " << phone << "-----" <<endl;
     k--;
   }
 

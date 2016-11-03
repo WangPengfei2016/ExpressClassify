@@ -4,7 +4,7 @@ LIBS = -lopencv_highgui -lopencv_imgcodecs -lopencv_core -lopencv_imgproc -lopen
 
 objects = config.o processor.o main.o
 
-ExpressClassify: $(objects)
+finder: $(objects)
 	@echo 生成目标文件...
 	clang++ $(objects) -o $@ $(LDFLAGS) $(LIBS)
 
@@ -23,5 +23,5 @@ processor.o: processor.cpp processor.h
 .PHONY:clean
 
 clean:
-	rm -f $(objects) ExpressClassify
+	rm -f $(objects) finder 
 

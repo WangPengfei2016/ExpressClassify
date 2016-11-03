@@ -11,7 +11,6 @@
 using namespace std;
 using namespace cv;
 
-
 class Processor {
 // 手机号处理类
 // 返回手机号
@@ -23,7 +22,7 @@ public:
     ~Processor();
 
     // 提取手机号
-    string extract_phone(Mat img, Rect rect);
+    string extract_phone(Mat img, Rect rect, int type);
 
 private:
     // tesseract 识别程序接口

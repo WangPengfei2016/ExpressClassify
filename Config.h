@@ -3,38 +3,37 @@
 
 #include <opencv2/core/core.hpp>
 
-enum EXPRESS {HORIZONAL, VERTICAL};
 
 class Config {
     protected:
-        int width;
+		cv::Rect bar;
     public:
-        virtual bool filter_region_by_shape(cv::Mat img)=0;
+		virtual cv::Mat cropy_region(cv::Mat region)=0;
 };
 
-class HorizonalExpress: public Config {
+class TempleteOne: public Config {
     public:
-        HorizonalExpress(int width);
-        virtual bool filter_region_by_shape(cv::Mat img);
+        TempleteOne(cv::Rect bar);
+		virtual cv::Mat cropy_region(cv::Mat region);
 };
 
-class VerticalExpress: public Config {
+class TempleteTwo: public Config {
     public:
-        VerticalExpress(int width);
-        virtual bool filter_region_by_shape(cv::Mat img);
+        TempleteTwo(cv::Rect bar);
+		virtual cv::Mat cropy_region(cv::Mat region);
 
 };
 
 class ConfigFactory {
 
     public:
-        Config* createConfig (enum EXPRESS type, int width) {
-            if (type == HORIZONAL)
+        Config* createConfig (int type, cv::Rect bar) {
+            if (type == 1)
             {
-                return new HorizonalExpress(width);
-            } else if (type == VERTICAL)
+                return new TempleteOne(bar);
+            } else if (type == 1)
             {
-                return new VerticalExpress(width);
+                return new TempleteTwo(bar);
             } else {
                 return NULL;
             }
