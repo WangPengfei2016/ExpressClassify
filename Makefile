@@ -10,15 +10,15 @@ finder: $(objects)
 
 config.o: config.cpp config.h
 	@echo 正在编译config.o模块...
-	clang++ -c $< $(CXXFLAG)
+	clang++ -c $< $(CXXFLAG) -Wall
 
 main.o: main.cpp processor.h
 	@echo 正在编译main.o模块...
-	clang++ -c $< $(CXXFLAG)
+	clang++ -c $< $(CXXFLAG) -Wall
 
 processor.o: processor.cpp processor.h
 	@echo 正在编译processor.o模块...
-	clang++ -c $< $(CXXFLAG)
+	clang++ -c $< $(CXXFLAG) -Wall
 
 .PHONY:clean
 

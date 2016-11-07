@@ -12,7 +12,7 @@ cv::Mat TempleteOne::cropy_region(cv::Mat region) {
 	phone.x = bar.x - bar.x/2;
 	phone.y = bar.y - bar.height*5/2;
 	phone.width = region.cols-phone.x;
-	phone.height = bar.height;
+	phone.height = bar.height*1.5;
 	return region(phone).clone();
 }
 

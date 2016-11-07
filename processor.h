@@ -9,7 +9,6 @@
 #include <tesseract/baseapi.h>
 
 using namespace std;
-using namespace cv;
 
 class Processor {
 // 手机号处理类
@@ -22,13 +21,13 @@ public:
     ~Processor();
 
     // 提取手机号
-    string extract_phone(Mat img, Rect rect, int type);
+    string extract_phone(std::string path, int x, int y, int width, int height, int type);
 
 private:
     // tesseract 识别程序接口
     tesseract::TessBaseAPI *api;
     // 识别手机号程序
-    string recognize_num(Mat image);
+    string recognize_num(cv::Mat image);
 };
 
 

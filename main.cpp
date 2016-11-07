@@ -5,18 +5,11 @@ int main() {
 
   Processor *processor = new Processor(NULL);
 
-  Mat src = imread("/Users/lambda/Downloads/bar.jpg");
-
-  if (src.empty()) {
-    cout << "no image" << endl;
-    exit(0);
-  }
-
-  cv::Rect rect = cv::Rect(cv::Point(40, 255), cv::Size(350, 90));
+  std::string path = "/Users/lambda/Downloads/882419904842751278,05125613.bmp";
 
   int k = 1;
   while (k) {
-	std::string phone = processor->extract_phone(src, rect, 1);
+	std::string phone = processor->extract_phone(path, 60, 380, 400, 100, 1);
 	cout<< "-----phone: " << phone << "-----" <<endl;
     k--;
   }
