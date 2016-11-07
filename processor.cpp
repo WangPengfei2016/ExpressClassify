@@ -24,7 +24,7 @@ bool phone_classify(Mat region)
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
     /* 记录每一行像素突变次数，取得最大值 */
     int *a = new int[region.cols](), max_pixs = 0;
-    uint max_change_times, last_pix = 0, change_times = 0;
+    uint max_change_times=0, last_pix = 0, change_times = 0;
     // 行遍历
     for (int i = 0; i < region.rows; ++i)
     {
@@ -47,17 +47,18 @@ bool phone_classify(Mat region)
             }
         }
         max_change_times = change_times > max_change_times ? change_times : max_change_times;
+		change_times = 0;
     }
 
     // 像素突变次数大于100次，判定不是手机号
-    if (max_change_times > 100 && max_change_times < 30)
+    if (max_change_times > 40 || max_change_times < 20)
     {
         return false;
     }
 
     // 根据投影切割字符，判断是否包含手机号
     // 循环切割，避免字符粘连造成分割不足
-    float rate = 0.05; // 初始阈值比例
+    float rate = 0.1; // 初始阈值比例
     while (true)
     {
         int limit = max_pixs * rate;
@@ -84,7 +85,7 @@ bool phone_classify(Mat region)
             return true;
         }
         // 阈值增长终止条件
-        if (rate > 0.15)
+        if (rate > 0.3)
             break;
         rate += 0.05;
     }
@@ -135,16 +136,12 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 
     cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
     adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
-	show("thr", thr);
 
     Mat closing = getStructuringElement(MORPH_RECT, Size(cols / 30, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
-	show("close", med);
 
     Mat opening = getStructuringElement(MORPH_RECT, Size(cols / 100, cols / 200));
     morphologyEx(med, last, MORPH_OPEN, opening);
-	show("last", last);
-
 
     // 获取所有轮廓，根据轮廓面积排序
     vector< vector<Point> > contours;
@@ -153,6 +150,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 
     for (int i = 0; i < contours.size(); ++i)
     {
+
         Rect candidate_rect = boundingRect(contours[i]);
 
         // 第一次粗过滤
@@ -163,15 +161,16 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
         }
 
         // 扩大手机号候选区域
-        if (candidate_rect.x > 10)
+        if (candidate_rect.y > 5)
         {
-            candidate_rect.x -= 10;
-            candidate_rect.width += 10;
+            candidate_rect.y -= 5;
+            candidate_rect.height += 5;
         }
 
         // 在原始图片中取出手机号
-        Mat candidate_region(gray, candidate_rect);
-		show("candidate", candidate_region);
+        Mat orgin_mat(gray, candidate_rect);
+		Mat candidate_region = orgin_mat.clone();
+
         // 手机号区域过小时，进行插值运算，放大手机号区域
         if (candidate_rect.width < 120)
         {
@@ -182,12 +181,11 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 		cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY_INV);
 
         // 精细过滤
-        if (!phone_classify(candidate_region.clone()))
+        if (!phone_classify(candidate_region))
         {
             continue;
         }
 
-		show("candidate", candidate_region);
         // 开始识别手机号
         string num = recognize_num(candidate_region);
         if (num != "NO")
