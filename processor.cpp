@@ -101,7 +101,7 @@ Processor::Processor(const char *path)
     api->SetVariable("tessedit_char_blacklist", ":,\".-");     // 设置识别黑名单
     api->SetVariable("tessedit_char_whitelist", "1234567890"); // 设置识别白名单
     api->SetVariable("save_blob_choices", "T");
-    api->SetPageSegMode(tesseract::PSM_SINGLE_WORD); // 设置识别模式为单行文本
+	api->SetPageSegMode(tesseract::PSM_SINGLE_WORD); // 设置识别模式为单行文本
 }
 
 Processor::~Processor()
@@ -166,10 +166,10 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
         }
 
         // 扩大手机号候选区域
-        if (candidate_rect.y > 5)
+        if (candidate_rect.y > 3)
         {
-            candidate_rect.y -= 5;
-            candidate_rect.height += 5;
+            candidate_rect.y -= 3;
+            candidate_rect.height += 3;
         }
 
         // 在原始图片中取出手机号
@@ -177,13 +177,12 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
         Mat candidate_region = orgin_mat.clone();
 
         // 手机号区域过小时，进行插值运算，放大手机号区域
-        if (candidate_rect.width < 150)
-        {
-            resize(candidate_region, candidate_region, Size(candidate_rect.width * 3, candidate_rect.height * 3), 0, 0, INTER_LANCZOS4);
-        }
+		if (candidate_rect.width < 140) {
+			resize(candidate_region, candidate_region, Size(candidate_rect.width * 2, candidate_rect.height * 2), 0, 0, INTER_LANCZOS4);
+		}
 
         // 二值化，抑制干扰
-        cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY_INV);
+		cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY_INV);
 
         // 精细过滤
         if (!phone_classify(candidate_region))
@@ -242,6 +241,7 @@ string Processor::recognize_num(Mat image)
 
     // 根据手机号特征，判别识别结果是否为手机号
     size_t length = outText.length();
+	cout<< "outText" << outText <<endl;
 
     if (length > 15 || length < 11)
     {
