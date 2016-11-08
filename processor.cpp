@@ -172,7 +172,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 		Mat candidate_region = orgin_mat.clone();
 
         // 手机号区域过小时，进行插值运算，放大手机号区域
-        if (candidate_rect.width < 120)
+        if (candidate_rect.width < 150)
         {
             resize(candidate_region, candidate_region, Size(candidate_rect.width * 3, candidate_rect.height * 3), 0, 0, INTER_LANCZOS4);
         }
