@@ -11,6 +11,11 @@ cv::Mat TempleteOne::cropy_region(cv::Mat region) {
 	cv::Rect phone;
 	phone.x = bar.x - bar.x/2;
 	phone.y = bar.y - bar.height*5/2;
+
+	if (phone.y < 0) {
+		return region;
+	}
+
 	phone.width = region.cols-phone.x;
 	phone.height = bar.height*1.5;
 	return region(phone).clone();

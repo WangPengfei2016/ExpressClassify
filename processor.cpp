@@ -1,5 +1,5 @@
-#include "processor.h"
 #include "config.h"
+#include "processor.h"
 #include <iostream>
 
 using namespace cv;
@@ -7,10 +7,10 @@ using namespace std;
 
 void show(string name, Mat img)
 {
-	cv::namedWindow(name, cv::WINDOW_AUTOSIZE);
-	cv::imshow(name, img);
-	cv::waitKey();
-	cv::destroyAllWindows();
+    cv::namedWindow(name, cv::WINDOW_AUTOSIZE);
+    cv::imshow(name, img);
+    cv::waitKey();
+    cv::destroyAllWindows();
 }
 
 bool comp(const vector<Point> key1, const vector<Point> key2)
@@ -24,7 +24,7 @@ bool phone_classify(Mat region)
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
     /* 记录每一行像素突变次数，取得最大值 */
     int *a = new int[region.cols](), max_pixs = 0;
-    uint max_change_times=0, last_pix = 0, change_times = 0;
+    uint max_change_times = 0, last_pix = 0, change_times = 0;
     // 行遍历
     for (int i = 0; i < region.rows; ++i)
     {
@@ -47,7 +47,7 @@ bool phone_classify(Mat region)
             }
         }
         max_change_times = change_times > max_change_times ? change_times : max_change_times;
-		change_times = 0;
+        change_times = 0;
     }
 
     // 像素突变次数大于100次，判定不是手机号
@@ -121,6 +121,11 @@ Processor::~Processor()
 string Processor::extract_phone(std::string path, int x, int y, int width, int height, int type)
 {
     Mat img = imread(path);
+
+	if (!img.data)
+	{
+		return "";
+	}
     Rect rect = Rect(Point(x, y), cv::Size(width, height));
     // 初始化变量
     Mat baup, gray, thr, med, last;
@@ -169,7 +174,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 
         // 在原始图片中取出手机号
         Mat orgin_mat(gray, candidate_rect);
-		Mat candidate_region = orgin_mat.clone();
+        Mat candidate_region = orgin_mat.clone();
 
         // 手机号区域过小时，进行插值运算，放大手机号区域
         if (candidate_rect.width < 150)
@@ -178,7 +183,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
         }
 
         // 二值化，抑制干扰
-		cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY_INV);
+        cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY_INV);
 
         // 精细过滤
         if (!phone_classify(candidate_region))
