@@ -2,7 +2,7 @@ from distutils.core import setup, Extension
 
 processor_modules = [
     Extension('_processor',
-              sources=['processor.cpp', 'Config.cpp', 'processor_wrap.cxx'],
+              sources=['processor.cpp', 'processor_wrap.cxx'],
               include_dirs=['C:/opencv/build/include/',
                             'C:/Users/jlb/Desktop/build/include/',
                             'C:/Users/jlb/Desktop/build/tesseract/api/',

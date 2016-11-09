@@ -1,4 +1,3 @@
-#include "config.h"
 #include "processor.h"
 #include <iostream>
 
@@ -51,7 +50,7 @@ bool phone_classify(Mat region)
     }
 
     // 像素突变次数大于100次，判定不是手机号
-    if (max_change_times > 40 || max_change_times < 20)
+    if (max_change_times > 50 || max_change_times < 20)
     {
         return false;
     }
@@ -132,12 +131,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
     // 条码宽度
     uint cols = (uint)rect.width;
 
-    // 根据面单宽度确定寻找参数
-    ConfigFactory *factory = new ConfigFactory();
-    Config *config = factory->createConfig(type, rect);
-
-    // 切割包含手机号的区域
-    baup = config->cropy_region(img);
+	baup = img.clone();
 
     cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
     adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
@@ -177,7 +171,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
         Mat candidate_region = orgin_mat.clone();
 
         // 手机号区域过小时，进行插值运算，放大手机号区域
-		if (candidate_rect.width < 140) {
+		if (candidate_rect.width < 200) {
 			resize(candidate_region, candidate_region, Size(candidate_rect.width * 2, candidate_rect.height * 2), 0, 0, INTER_LANCZOS4);
 		}
 
@@ -241,7 +235,6 @@ string Processor::recognize_num(Mat image)
 
     // 根据手机号特征，判别识别结果是否为手机号
     size_t length = outText.length();
-	cout<< "outText" << outText <<endl;
 
     if (length > 15 || length < 11)
     {
@@ -251,7 +244,6 @@ string Processor::recognize_num(Mat image)
     size_t front;
     for (front = 0; front <= length - 11; front++)
     {
-        cout << outText[front] << front << endl;
         if (outText[front] != '1')
         {
             continue;
