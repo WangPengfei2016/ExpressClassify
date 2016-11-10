@@ -154,7 +154,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
         // 第一次粗过滤
         // 根据形状和面积过滤
-        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 20)
+        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 25)
         {
             continue;
         }
