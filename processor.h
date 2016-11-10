@@ -21,7 +21,7 @@ public:
     ~Processor();
 
     // 提取手机号
-    string extract_phone(std::string path, int x, int y, int width, int height, int type);
+    string extract_phone(std::string path, int width, int height);
 
 private:
     // tesseract 识别程序接口

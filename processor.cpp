@@ -117,7 +117,7 @@ Processor::~Processor()
  * rect 条码位置矩形
  * type 面单类型
 **/
-string Processor::extract_phone(std::string path, int x, int y, int width, int height, int type)
+string Processor::extract_phone(std::string path, int width, int height)
 {
     Mat img = imread(path);
 
@@ -125,7 +125,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 	{
 		return "";
 	}
-    Rect rect = Rect(Point(x, y), cv::Size(width, height));
+    Rect rect = Rect(Point(0, 0), cv::Size(width, height));
     // 初始化变量
     Mat baup, gray, thr, med, last;
     // 条码宽度
@@ -154,7 +154,7 @@ string Processor::extract_phone(std::string path, int x, int y, int width, int h
 
         // 第一次粗过滤
         // 根据形状和面积过滤
-        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height)
+        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2)
         {
             continue;
         }
