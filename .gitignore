@@ -1,4 +1,6 @@
 .vscode
 *autoClassify
-main.cpp
+main.*
+processor.o
+finder
 Makefile
