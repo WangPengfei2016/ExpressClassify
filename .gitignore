@@ -1,2 +1,4 @@
 .vscode
 *autoClassify
+main.cpp
+Makefile
