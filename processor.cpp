@@ -154,16 +154,9 @@ string Processor::extract_phone(std::string path, int width, int height)
 
         // 第一次粗过滤
         // 根据形状和面积过滤
-        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2)
+        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 20)
         {
             continue;
-        }
-
-        // 扩大手机号候选区域
-        if (candidate_rect.y > 3)
-        {
-            candidate_rect.y -= 3;
-            candidate_rect.height += 3;
         }
 
         // 在原始图片中取出手机号
@@ -178,6 +171,9 @@ string Processor::extract_phone(std::string path, int width, int height)
         {
             continue;
         }
+
+		cv::pyrUp(candidate_region, candidate_region, Size(candidate_region.cols*2, candidate_region.rows*2));
+		cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY);
 
         // 开始识别手机号
         string num = recognize_num(candidate_region);
