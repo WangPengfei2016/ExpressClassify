@@ -170,13 +170,8 @@ string Processor::extract_phone(std::string path, int width, int height)
         Mat orgin_mat(gray, candidate_rect);
         Mat candidate_region = orgin_mat.clone();
 
-        // 手机号区域过小时，进行插值运算，放大手机号区域
-		if (candidate_rect.width < 200) {
-			resize(candidate_region, candidate_region, Size(candidate_rect.width * 2, candidate_rect.height * 2), 0, 0, INTER_LANCZOS4);
-		}
-
         // 二值化，抑制干扰
-		cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY_INV);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 5);
 
         // 精细过滤
         if (!phone_classify(candidate_region))
