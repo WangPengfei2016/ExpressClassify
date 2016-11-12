@@ -49,8 +49,9 @@ bool phone_classify(Mat region)
         change_times = 0;
     }
 
+	cout<< "change_times" << max_change_times <<endl;
     // 像素突变次数大于100次，判定不是手机号
-    if (max_change_times > 50 || max_change_times < 20)
+    if (max_change_times > 55 || max_change_times < 20)
     {
         return false;
     }
@@ -88,7 +89,6 @@ bool phone_classify(Mat region)
             break;
         rate += 0.05;
     }
-
     return false;
 }
 
@@ -154,10 +154,16 @@ string Processor::extract_phone(std::string path, int width, int height)
 
         // 第一次粗过滤
         // 根据形状和面积过滤
-        if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 25)
-        {
-            continue;
-        }
+		if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 25)
+		{
+			continue;
+		}
+
+		if (candidate_rect.x > 3)
+		{
+			candidate_rect.x -= 3;
+			candidate_rect.width += 6;
+		}
 
         // 在原始图片中取出手机号
         Mat orgin_mat(gray, candidate_rect);
@@ -209,10 +215,10 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-            if (conf < 60)
-            {
-                continue;
-            }
+			if (conf < 60)
+			{
+				continue;
+			}
             confidence.push_back(conf);
             const char *symbol = ri->GetUTF8Text(level);
             if (symbol == 0)
@@ -259,6 +265,12 @@ string Processor::recognize_num(Mat image)
                 findPhone = true;
             goto finally;
         }
+		else if (outText[front + 1] == '7')
+		{
+			if (outText[front + 2] == '8' || outText[front + 2] == '6' || outText[front +2] == '0')
+				findPhone = true;
+			goto finally;
+		}
     }
 
 // 识别过程结束清理
