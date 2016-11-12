@@ -129,17 +129,21 @@ string Processor::extract_phone(std::string path, int width, int height)
     // 初始化变量
     Mat baup, gray, thr, med, last;
     // 条码宽度
-    uint cols = (uint)rect.width;
+    uint ruler = (uint)rect.width;
+
+	// 图片宽高
+	uint cols = img.cols;
+	uint rows = img.rows;
 
 	baup = img.clone();
 
     cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
     adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
-    Mat closing = getStructuringElement(MORPH_RECT, Size(cols / 30, 1));
+    Mat closing = getStructuringElement(MORPH_RECT, Size(ruler / 30, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
-    Mat opening = getStructuringElement(MORPH_RECT, Size(cols / 100, cols / 200));
+    Mat opening = getStructuringElement(MORPH_RECT, Size(ruler / 100, ruler / 200));
     morphologyEx(med, last, MORPH_OPEN, opening);
 
     // 获取所有轮廓，根据轮廓面积排序
@@ -155,6 +159,16 @@ string Processor::extract_phone(std::string path, int width, int height)
         // 第一次粗过滤
         // 根据形状和面积过滤
 		if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 25)
+		{
+			continue;
+		}
+
+		// 根据边缘位置过滤
+		if (candidate_rect.x < 20 || candidate_rect.y < 20)
+		{
+			continue;
+		}
+		if ((cols-candidate_rect.x-candidate_rect.width)< 20 || (rows-candidate_rect.y-candidate_rect.height) < 20)
 		{
 			continue;
 		}
