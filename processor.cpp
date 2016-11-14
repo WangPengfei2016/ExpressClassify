@@ -95,11 +95,11 @@ bool phone_classify(Mat region)
 Processor::Processor(const char *path)
 {
     // 创建识别api
-    api = new tesseract::TessBaseAPI();
-    api->Init(path, "eng");                                    // 初始化识别数据路径和语言
-    api->SetVariable("tessedit_char_blacklist", ":,\".-");     // 设置识别黑名单
-    api->SetVariable("tessedit_char_whitelist", "1234567890"); // 设置识别白名单
-    api->SetVariable("save_blob_choices", "T");
+	api = new tesseract::TessBaseAPI();
+	api->Init(path, "eng");                                    // 初始化识别数据路径和语言
+	api->SetVariable("tessedit_char_blacklist", ":,\".-");     // 设置识别黑名单
+	api->SetVariable("tessedit_char_whitelist", "1234567890"); // 设置识别白名单
+	api->SetVariable("save_blob_choices", "T");
 	api->SetPageSegMode(tesseract::PSM_SINGLE_WORD); // 设置识别模式为单行文本
 }
 

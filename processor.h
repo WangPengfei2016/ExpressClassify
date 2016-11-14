@@ -1,6 +1,7 @@
 #ifndef PROCESSER_H
 #define PROCESSER_H
 
+#include <list>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/utility.hpp>
 #include <opencv2/highgui/highgui.hpp>
