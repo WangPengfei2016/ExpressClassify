@@ -128,7 +128,7 @@ bool phone_classify(Mat region)
     }
     uint meanWidth = 0;
     int front = 0;
-    list<Rect> chars;
+    list<Rect> rectList;
     for (int k = 0; k < hand.cols - 1; ++k)
     {
         if (a[k] ==0 && a[k+1] > a[k])
@@ -137,32 +137,44 @@ bool phone_classify(Mat region)
         }
         else if (a[k] > a[k+1] && a[k+1] == 0)
         {
-            chars.push_back(Rect(Point(front, 0), Size(k-front+1, hand.rows)));
+            rectList.push_back(Rect(Point(front, 0), Size(k-front+1, hand.rows)));
             meanWidth += k-front+1;
         }
     }
-    meanWidth /= chars.size();
-    for (list<Rect>::iterator rect = chars.begin(); rect != chars.end(); ++rect) {
-        int width = rect->width;
-        if (width > meanWidth*2)
-        {
-            short count;
-            int *value = extrMinValue(a+rect->x, rect->width, &count);
-            int offset = rect->x;
-            int min_pos = value[0];
-            for (int k=1; k < count; k++)
-            {
-                if (a[min_pos+offset] > a[offset+value[k]])
-                {
-                    min_pos = value[k];
-                }
-            }
-            Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
-            Rect second(Point(rect->x+min_pos, 0), Size(width-min_pos, rect->height));
-            chars.insert(rect, first);
-            chars.insert(rect, second);
-            chars.erase(rect);
-        }
+    meanWidth /= rectList.size();
+	list<Rect> chars;
+    for (list<Rect>::iterator rect = rectList.begin(); rect != rectList.end(); ++rect) {
+		if (rect->width > meanWidth*2)
+		{
+			short count;
+			int *extr = a+rect->x;
+			list<int> tmp;
+			for (int i = 1; i < rect->width-1; ++i)
+			{
+				if (extr[i] < extr[i-1] && extr[i] < extr[i+1])
+				{
+					tmp.push_back(i);
+				}
+			}
+
+			int offset = rect->x;
+			int min_pos = *(tmp.begin());
+			for(list<int>::iterator item = tmp.begin(); item != tmp.end(); item++)
+			{
+				if (a[min_pos+offset] > a[offset+(*item)])
+				{
+					min_pos = *item;
+				}
+
+			}
+			Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
+			Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
+			chars.push_back(first);
+			chars.push_back(second);
+		}
+		else {
+			chars.push_back(*rect);
+		}
     }
     if (chars.size() < 11 || chars.size() > 16)
     {
@@ -185,6 +197,7 @@ Processor::Processor(const char *path)
 Processor::~Processor()
 {
     // 清除api防止内存泄漏
+	cout<< "delete" <<endl;
     api->Clear();
     api = NULL;
     delete api;
