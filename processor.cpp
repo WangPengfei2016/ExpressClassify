@@ -72,6 +72,7 @@ bool phone_classify(Mat region)
     {
         return false;
     }
+
     Mat hand(region, final);
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
     /* 记录每一行像素突变次数，取得最大值 */
@@ -101,6 +102,7 @@ bool phone_classify(Mat region)
         max_change_times = change_times > max_change_times ? change_times : max_change_times;
         change_times = 0;
     }
+
     if (max_change_times > 60 || max_change_times < 25)
     {
         return false;
@@ -120,6 +122,7 @@ bool phone_classify(Mat region)
             meanWidth += k-front+1;
         }
     }
+
     meanWidth /= rectList.size();
 	list<Rect> chars;
     for (list<Rect>::iterator rect = rectList.begin(); rect != rectList.end(); ++rect) {
@@ -151,10 +154,12 @@ bool phone_classify(Mat region)
 			chars.push_back(first);
 			chars.push_back(second);
 		}
-		else {
+		else if (rect->width > 2){
+
 			chars.push_back(*rect);
 		}
     }
+
     if (chars.size() < 11 || chars.size() > 16)
     {
         return false;
@@ -229,7 +234,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
         // 第一次粗过滤
         // 根据形状和面积过滤
-		if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height / 2 || candidate_rect.height > 25)
+		if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height/2 || candidate_rect.height > 40)
 		{
 			continue;
 		}
@@ -255,7 +260,7 @@ string Processor::extract_phone(std::string path, int width, int height)
         Mat candidate_region = orgin_mat.clone();
 
         // 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 5);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 8);
 
         // 精细过滤
         if (!phone_classify(candidate_region))
