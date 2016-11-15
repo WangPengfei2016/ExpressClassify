@@ -18,18 +18,92 @@ bool comp(const vector<Point> key1, const vector<Point> key2)
     return contourArea(key1) > contourArea(key2);
 }
 
+int *extrMinValue(const int extr[], uint size, short *count)
+{
+    list<int> tmp;
+    for (int i = 1; i < size -1; ++i)
+    {
+        if (extr[i] < extr[i-1] && extr[i] < extr[i+1])
+        {
+            tmp.push_back(i);
+        }
+    }
+    int *minValue = new int(tmp.size());
+    *count = tmp.size();
+    uint index = 0;
+    for(list<int>::iterator item = tmp.begin(); item != tmp.end(); item++)
+    {
+        minValue[index] = *item;
+        index++;
+    }
+    return minValue;
+}
+
+
 bool phone_classify(Mat region)
 {
-    /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
-    /* 记录每一行像素突变次数，取得最大值 */
-    int *a = new int[region.cols](), max_pixs = 0;
-    uint max_change_times = 0, last_pix = 0, change_times = 0;
-    // 行遍历
-    for (int i = 0; i < region.rows; ++i)
+    list<Rect> faultage;
+    /* 获取垂直方向投影，确定文本行 */
+    int *v = new int[region.rows]();
+    for (int i = 0; i <region.rows; ++i)
     {
         uchar *p = region.ptr<uchar>(i);
-        // 列遍历
         for (int j = 0; j < region.cols; ++j)
+        {
+            if (p[j] == 255) {
+                v[i]++;
+            }
+        }
+    }
+    int start = 0;
+    bool block = false;
+    for (int i = 1; i < region.rows; i++)
+    {
+        if (!block) {
+            if (v[i] > 10)
+            {
+                block = true;
+                start = i;
+            }
+            continue;
+        }
+        if (v[i] < 10)
+        {
+            Rect rect;
+            rect.y = start;
+            rect.height = i-start;
+            rect.width = region.cols;
+            faultage.push_back(rect);
+            start = 0;
+            block = false;
+        }
+    }
+    Rect final;
+    for (list<Rect>::iterator rect = faultage.begin(); rect != faultage.end(); rect++)
+    {
+        if (final.height < rect->height)
+        {
+            final.x = rect->x;
+            final.y = rect->y;
+            final.width = rect->width;
+            final.height = rect->height;
+        }
+    }
+    if (final.width < 100 || final.width > 350)
+    {
+        return false;
+    }
+    Mat hand(region, final);
+    /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
+    /* 记录每一行像素突变次数，取得最大值 */
+    int *a = new int[hand.cols](), max_pixs = 0;
+    uint max_change_times = 0, last_pix = 0, change_times = 0;
+    // 行遍历
+    for (int i = 0; i < hand.rows; ++i)
+    {
+        uchar *p = hand.ptr<uchar>(i);
+        // 列遍历
+        for (int j = 0; j < hand.cols; ++j)
         {
             if (p[j] == 255)
             {
@@ -48,48 +122,53 @@ bool phone_classify(Mat region)
         max_change_times = change_times > max_change_times ? change_times : max_change_times;
         change_times = 0;
     }
-
-	cout<< "change_times" << max_change_times <<endl;
-    // 像素突变次数大于100次，判定不是手机号
-    if (max_change_times > 55 || max_change_times < 20)
+    if (max_change_times > 60 || max_change_times < 25)
     {
         return false;
     }
-
-    // 根据投影切割字符，判断是否包含手机号
-    // 循环切割，避免字符粘连造成分割不足
-    float rate = 0.1; // 初始阈值比例
-    while (true)
+    uint meanWidth = 0;
+    int front = 0;
+    list<Rect> chars;
+    for (int k = 0; k < hand.cols - 1; ++k)
     {
-        int limit = max_pixs * rate;
-        vector<Rect> s;
-        bool isChar = false;
-        int start = 0;
-        for (int k = 0; k < region.cols; ++k)
+        if (a[k] ==0 && a[k+1] > a[k])
         {
-            if (a[k] > limit && !isChar)
-            {
-                start = k;
-                isChar = true;
-            }
-            else if (a[k] < limit && isChar)
-            {
-                s.push_back(Rect(Point(start, 0), Size(k - start, region.rows)));
-                isChar = false;
-            }
+            front = k;
         }
-
-        // 判断字符个数
-        if (s.size() > 9 && s.size() < 15)
+        else if (a[k] > a[k+1] && a[k+1] == 0)
         {
-            return true;
+            chars.push_back(Rect(Point(front, 0), Size(k-front+1, hand.rows)));
+            meanWidth += k-front+1;
         }
-        // 阈值增长终止条件
-        if (rate > 0.3)
-            break;
-        rate += 0.05;
     }
-    return false;
+    meanWidth /= chars.size();
+    for (list<Rect>::iterator rect = chars.begin(); rect != chars.end(); ++rect) {
+        int width = rect->width;
+        if (width > meanWidth*2)
+        {
+            short count;
+            int *value = extrMinValue(a+rect->x, rect->width, &count);
+            int offset = rect->x;
+            int min_pos = value[0];
+            for (int k=1; k < count; k++)
+            {
+                if (a[min_pos+offset] > a[offset+value[k]])
+                {
+                    min_pos = value[k];
+                }
+            }
+            Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
+            Rect second(Point(rect->x+min_pos, 0), Size(width-min_pos, rect->height));
+            chars.insert(rect, first);
+            chars.insert(rect, second);
+            chars.erase(rect);
+        }
+    }
+    if (chars.size() < 11 || chars.size() > 16)
+    {
+        return false;
+    }
+    return true;
 }
 
 Processor::Processor(const char *path)
