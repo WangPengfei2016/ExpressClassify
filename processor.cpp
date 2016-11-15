@@ -204,10 +204,8 @@ string Processor::extract_phone(std::string path, int width, int height)
     Rect rect = Rect(Point(0, 0), cv::Size(width, height));
     // 初始化变量
     Mat baup, gray, thr, med, last;
-    // 条码宽度
-    uint ruler = (uint)rect.width;
 
-	// 图片宽高
+	// 图片宽
 	uint cols = img.cols;
 	uint rows = img.rows;
 
