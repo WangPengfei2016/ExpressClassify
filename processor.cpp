@@ -160,7 +160,7 @@ bool phone_classify(Mat region)
 		}
     }
 
-    if (chars.size() < 11 || chars.size() > 16)
+    if (chars.size() < 10 || chars.size() > 16)
     {
         return false;
     }
@@ -261,7 +261,6 @@ string Processor::extract_phone(std::string path, int width, int height)
 
         // 二值化，抑制干扰
 		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 8);
-
         // 精细过滤
         if (!phone_classify(candidate_region))
         {
