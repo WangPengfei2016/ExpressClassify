@@ -216,10 +216,10 @@ string Processor::extract_phone(std::string path, int width, int height)
     cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
     adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
-    Mat closing = getStructuringElement(MORPH_RECT, Size(ruler / 30, 1));
+    Mat closing = getStructuringElement(MORPH_RECT, Size(13, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
-    Mat opening = getStructuringElement(MORPH_RECT, Size(ruler / 100, ruler / 200));
+    Mat opening = getStructuringElement(MORPH_RECT, Size(4, 2));
     morphologyEx(med, last, MORPH_OPEN, opening);
 
     // 获取所有轮廓，根据轮廓面积排序
