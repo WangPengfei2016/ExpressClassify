@@ -18,27 +18,6 @@ bool comp(const vector<Point> key1, const vector<Point> key2)
     return contourArea(key1) > contourArea(key2);
 }
 
-int *extrMinValue(const int extr[], uint size, short *count)
-{
-    list<int> tmp;
-    for (int i = 1; i < size -1; ++i)
-    {
-        if (extr[i] < extr[i-1] && extr[i] < extr[i+1])
-        {
-            tmp.push_back(i);
-        }
-    }
-    int *minValue = new int(tmp.size());
-    *count = tmp.size();
-    uint index = 0;
-    for(list<int>::iterator item = tmp.begin(); item != tmp.end(); item++)
-    {
-        minValue[index] = *item;
-        index++;
-    }
-    return minValue;
-}
-
 
 bool phone_classify(Mat region)
 {
