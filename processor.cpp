@@ -34,6 +34,7 @@ bool phone_classify(Mat region)
             }
         }
     }
+
     int start = 0;
     bool block = false;
     for (int i = 1; i < region.rows; i++)
@@ -57,6 +58,7 @@ bool phone_classify(Mat region)
             block = false;
         }
     }
+
     Rect final;
     for (list<Rect>::iterator rect = faultage.begin(); rect != faultage.end(); rect++)
     {
@@ -160,7 +162,7 @@ bool phone_classify(Mat region)
 		}
     }
 
-    if (chars.size() < 10 || chars.size() > 16)
+    if (chars.size() < 11 || chars.size() > 16)
     {
         return false;
     }
@@ -302,7 +304,7 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 60)
+			if (conf < 70)
 			{
 				continue;
 			}
