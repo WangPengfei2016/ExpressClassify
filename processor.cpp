@@ -109,6 +109,7 @@ bool phone_classify(Mat region)
     {
         return false;
     }
+
     uint meanWidth = 0;
     int front = 0;
     list<Rect> rectList;
@@ -162,7 +163,7 @@ bool phone_classify(Mat region)
 		}
     }
 
-    if (chars.size() < 11 || chars.size() > 16)
+    if (chars.size() < 11 || chars.size() > 20)
     {
         return false;
     }
@@ -183,7 +184,6 @@ Processor::Processor(const char *path)
 Processor::~Processor()
 {
     // 清除api防止内存泄漏
-	cout<< "delete" <<endl;
     api->Clear();
     api = NULL;
     delete api;
@@ -260,7 +260,7 @@ string Processor::extract_phone(std::string path, int width, int height)
         Mat candidate_region = orgin_mat.clone();
 
         // 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 8);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 8);
         // 精细过滤
         if (!phone_classify(candidate_region))
         {
@@ -304,7 +304,7 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 70)
+			if (conf < 65)
 			{
 				continue;
 			}
