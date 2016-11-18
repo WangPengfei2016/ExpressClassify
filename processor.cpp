@@ -70,6 +70,7 @@ bool phone_classify(Mat region)
             final.height = rect->height;
         }
     }
+
     if (final.width < 100 || final.width > 350)
     {
         return false;
@@ -104,7 +105,6 @@ bool phone_classify(Mat region)
         max_change_times = change_times > max_change_times ? change_times : max_change_times;
         change_times = 0;
     }
-
     if (max_change_times > 60 || max_change_times < 25)
     {
         return false;
@@ -163,7 +163,7 @@ bool phone_classify(Mat region)
 		}
     }
 
-    if (chars.size() < 11 || chars.size() > 20)
+    if (chars.size() < 10 || chars.size() > 20)
     {
         return false;
     }
