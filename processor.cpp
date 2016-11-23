@@ -40,13 +40,17 @@ bool phone_classify(Mat region)
     for (int i = 1; i < region.rows; i++)
     {
         if (!block) {
-            if (v[i] > 10)
+            if (v[i] != 0 && v[i] < region.cols*0.8)
             {
                 block = true;
                 start = i;
             }
             continue;
-        }
+		} else if (v[i] > region.cols*0.8) {
+			block = false;
+			start = 0;
+			continue;
+		}
         if (v[i] < 10)
         {
             Rect rect;
@@ -78,9 +82,10 @@ bool phone_classify(Mat region)
 
     Mat hand(region, final);
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
-    /* 记录每一行像素突变次数，取得最大值 */
-    int *a = new int[hand.cols](), max_pixs = 0;
-    uint max_change_times = 0, last_pix = 0, change_times = 0;
+    /* 记录每一行像素突变次数 */
+	short changes[hand.rows][hand.cols];
+    int *a = new int[hand.cols]();
+    uint last_pix = 0;
     // 行遍历
     for (int i = 0; i < hand.rows; ++i)
     {
@@ -91,23 +96,15 @@ bool phone_classify(Mat region)
             if (p[j] == 255)
             {
                 a[j]++;
-                if (max_pixs < a[j])
-                {
-                    max_pixs = a[j];
-                }
             }
             if (p[j] != last_pix)
             {
                 last_pix = p[j];
-                change_times++;
-            }
+				changes[i][j] = 1;
+			} else {
+				changes[i][j] = 0;
+			}
         }
-        max_change_times = change_times > max_change_times ? change_times : max_change_times;
-        change_times = 0;
-    }
-    if (max_change_times > 60 || max_change_times < 25)
-    {
-        return false;
     }
 
     uint meanWidth = 0;
@@ -129,11 +126,32 @@ bool phone_classify(Mat region)
     meanWidth /= rectList.size();
 	list<Rect> chars;
     for (list<Rect>::iterator rect = rectList.begin(); rect != rectList.end(); ++rect) {
+
+		int offset = rect->x;
+		int change = 0;
+
+		for(int i = rect->y; i < rect->y+rect->height; i++)
+		{
+			int sum = 0;
+			for (int j = rect->x; j < rect->x+rect->width; j++)
+			{
+				sum += changes[i][j];
+			}
+
+			change = sum>change ? sum : change;
+		}
+
 		if (rect->width > meanWidth*2)
 		{
 			short count;
 			int *extr = a+rect->x;
 			list<int> tmp;
+
+			if (change/2 > 5)
+			{
+				continue;
+			}
+
 			for (int i = 1; i < rect->width-1; ++i)
 			{
 				if (extr[i] < extr[i-1] && extr[i] < extr[i+1])
@@ -156,14 +174,14 @@ bool phone_classify(Mat region)
 			Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
 			chars.push_back(first);
 			chars.push_back(second);
-		}
-		else if (rect->width > 2){
-
-			chars.push_back(*rect);
+		} else {
+			if (change < 6) {
+				chars.push_back(*rect);
+			}
 		}
     }
 
-    if (chars.size() < 10 || chars.size() > 15)
+    if (chars.size() < 10 || chars.size() > 13)
     {
         return false;
     }
@@ -252,6 +270,12 @@ string Processor::extract_phone(std::string path, int width, int height)
 		if (candidate_rect.x > 3)
 		{
 			candidate_rect.x -= 3;
+			candidate_rect.width += 6;
+		}
+
+		if (candidate_rect.y > 3)
+		{
+			candidate_rect.x -=3;
 			candidate_rect.width += 6;
 		}
 
