@@ -163,7 +163,7 @@ bool phone_classify(Mat region)
 		}
     }
 
-    if (chars.size() < 10 || chars.size() > 20)
+    if (chars.size() < 10 || chars.size() > 15)
     {
         return false;
     }
