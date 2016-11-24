@@ -166,8 +166,8 @@ bool phone_classify(Mat region)
 
 			}
 
-
-			if (a[min_pos+offset] < 4 && labs(rect->width - min_pos*2) < meanWidth/2){
+			int distance = rect->width - min_pos > min_pos ? rect->width - min_pos*2 : min_pos*2 - rect->width;
+			if (a[min_pos+offset] < 4 &&  distance < meanWidth/2){
 				Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
 				Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
 				chars.push_back(first);
