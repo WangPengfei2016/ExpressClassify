@@ -75,10 +75,10 @@ bool phone_classify(Mat region)
         }
     }
 
-    if (final.width < 100 || final.width > 350)
-    {
-        return false;
-    }
+	if (final.width < 100 || final.width > 350)
+	{
+		return false;
+	}
 
     Mat hand(region, final);
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
@@ -141,16 +141,11 @@ bool phone_classify(Mat region)
 			change = sum>change ? sum : change;
 		}
 
-		if (rect->width > meanWidth*2)
+		if (rect->width > meanWidth*2 && change/2 < 6)
 		{
 			short count;
 			int *extr = a+rect->x;
 			list<int> tmp;
-
-			if (change/2 > 5)
-			{
-				continue;
-			}
 
 			for (int i = 1; i < rect->width-1; ++i)
 			{
@@ -170,18 +165,22 @@ bool phone_classify(Mat region)
 				}
 
 			}
-			Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
-			Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
-			chars.push_back(first);
-			chars.push_back(second);
-		} else {
-			if (change < 6) {
-				chars.push_back(*rect);
+
+
+			if (a[min_pos+offset] < 4 && labs(rect->width - min_pos*2) < meanWidth/2){
+				Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
+				Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
+				chars.push_back(first);
+				chars.push_back(second);
 			}
+		} else if (change < 6){
+			chars.push_back(*rect);
+		} else {
+			chars.clear();
 		}
     }
 
-    if (chars.size() < 10 || chars.size() > 13)
+    if (chars.size() < 10 || chars.size() > 17)
     {
         return false;
     }
