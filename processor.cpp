@@ -82,8 +82,12 @@ bool phone_classify(Mat region)
 
     Mat hand(region, final);
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
+	//short changes[hand.rows][hand.cols];
     /* 记录每一行像素突变次数 */
-	short changes[hand.rows][hand.cols];
+	short **changes = new short*[hand.rows];
+	for (int i = 0; i < hand.rows; i++) {
+		changes[i] = new short[hand.cols];
+	}
     int *a = new int[hand.cols]();
     uint last_pix = 0;
     // 行遍历
@@ -179,6 +183,11 @@ bool phone_classify(Mat region)
 			chars.clear();
 		}
     }
+
+	for (int i = 1; i < hand.rows; i++) {
+		delete[] changes[i];
+	}
+	delete[] changes;
 
     if (chars.size() < 10 || chars.size() > 17)
     {
