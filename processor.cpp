@@ -307,7 +307,7 @@ string Processor::extract_phone(std::string path, int width, int height)
         string num = recognize_num(candidate_region);
 		size_t pos = path.find_first_of(num);
 
-		if (pos != string::npos) {
+		if (pos == string::npos) {
 			num = "NO";
 		}
         if (num != "NO")
