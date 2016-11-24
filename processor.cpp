@@ -420,7 +420,7 @@ finally:
 
     if (average_confidence > 75)
     {
-        return outText.substr(front, front + 11);
+        return outText.substr(front, front + 11)+":"+to_string(average_confidence);
     }
     else
     {
