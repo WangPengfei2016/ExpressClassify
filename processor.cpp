@@ -132,19 +132,19 @@ bool phone_classify(Mat region)
     for (list<Rect>::iterator rect = rectList.begin(); rect != rectList.end(); ++rect) {
 
 		int offset = rect->x;
-		int change = 0;
+		float change = 0.0;
+		int sum = 0;
 
 		for(int i = rect->y; i < rect->y+rect->height; i++)
 		{
-			int sum = 0;
 			for (int j = rect->x; j < rect->x+rect->width; j++)
 			{
 				sum += changes[i][j];
 			}
 
-			change = sum>change ? sum : change;
 		}
 
+		change = sum*1.0/rect->height;
 		if (rect->width > meanWidth*2 && change/2 < 6)
 		{
 			short count;
@@ -189,7 +189,7 @@ bool phone_classify(Mat region)
 	}
 	delete[] changes;
 
-    if (chars.size() < 10 || chars.size() > 17)
+    if (chars.size() < 10 || chars.size() > 20)
     {
         return false;
     }
@@ -227,6 +227,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 	if (!img.data)
 	{
+		cout<< "no data" <<endl;
 		return "";
 	}
     Rect rect = Rect(Point(0, 0), cv::Size(width, height));
@@ -292,7 +293,7 @@ string Processor::extract_phone(std::string path, int width, int height)
         Mat candidate_region = orgin_mat.clone();
 
         // 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 8);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 13, 8);
         // 精细过滤
         if (!phone_classify(candidate_region))
         {
