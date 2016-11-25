@@ -305,15 +305,13 @@ string Processor::extract_phone(std::string path, int width, int height)
 
         // 开始识别手机号
         string num = recognize_num(candidate_region);
-		size_t pos = string::npos;
-		pos = path.find(num);
-
-		if (pos != string::npos) {
-			num = "NO";
-		}
         if (num != "NO")
         {
-            return num;
+			size_t pos = string::npos;
+			pos = path.find(num.substr(0, 11));
+			if (pos == string::npos) {
+				return num;
+			}
         }
     }
 
@@ -349,7 +347,7 @@ string Processor::recognize_num(Mat image)
 			}
             confidence.push_back(conf);
             const char *symbol = ri->GetUTF8Text(level);
-            if (symbol == 0)
+            if (symbol == 0 || string(symbol) == " ")
             {
                 continue;
             }
