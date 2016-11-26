@@ -228,7 +228,9 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cout<< "no data" <<endl;
 		return "";
 	}
-    Rect rect = Rect(Point(0, 0), cv::Size(width, height));
+
+	Size crop = Size(width, height);
+
     // 初始化变量
     Mat baup, gray, thr, med, last;
 
@@ -255,7 +257,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 	int count = 0;
     for (int i = 0; i < contours.size(); ++i)
     {
-		int limit = rect.area();
+		int limit = crop.area();
 
 		cv::RotatedRect rotatedRect = cv::minAreaRect(contours[i]);
 
@@ -272,7 +274,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 第一次粗过滤
 		// 根据形状和面积过滤
-		if (area.area() > limit*0.1 || area.area() < limit*0.01 || area.width < 5*area.height) {
+		if (area.area() > limit*0.01 || area.area() < limit*0.001  || area.width < 5*area.height) {
 			continue;
 		}
 
@@ -295,7 +297,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 13, 8);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 13, 8);
 
 		// 精细过滤
 		if (!phone_classify(candidate_region))
