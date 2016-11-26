@@ -1,5 +1,6 @@
 #include "processor.h"
 #include <iostream>
+#include <stdlib.h>
 
 using namespace cv;
 using namespace std;
@@ -168,14 +169,13 @@ bool phone_classify(Mat region)
 
 			}
 
-			int distance = rect->width - min_pos > min_pos ? rect->width - min_pos*2 : min_pos*2 - rect->width;
-			if (a[min_pos+offset] < 4 &&  distance < meanWidth/2){
+			if (a[min_pos+offset] < 4){
 				Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
 				Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
 				chars.push_back(first);
 				chars.push_back(second);
 			}
-		} else if (change < 6){
+		} else if (change < 4){
 			chars.push_back(*rect);
 		} else {
 			chars.clear();
@@ -274,7 +274,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 第一次粗过滤
 		// 根据形状和面积过滤
-		if (area.area() > limit*0.1 || area.area() < limit*0.001  || area.width < 5*area.height) {
+		if (area.area() > limit*0.01 || area.area() < limit*0.001  || area.width < 5*area.height) {
 			continue;
 		}
 
@@ -290,7 +290,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		if (center.y - area.height/2 > 3)
 		{
-			area.height += 6;
+			area.height += 4;
 		}
 
 		// 在原始图片中取出手机号
@@ -300,9 +300,12 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 3, 5);
+		if (candidate_region.rows > 18) {
+			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 6);
+		} else {
+			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 3, 3);
+		}
 
-		show("adaptiveThreshold", candidate_region);
 		// 精细过滤
 		if (!phone_classify(candidate_region))
 		{
@@ -317,7 +320,8 @@ string Processor::extract_phone(std::string path, int width, int height)
 			size_t pos = string::npos;
 			pos = path.find(num.substr(0, 11));
 			if (pos == string::npos) {
-				cout<< "try times " << count <<endl;
+				string name = "./phone/"+num+":"+to_string(rand())+".tif";
+				cv::imwrite(name, candidate_region);
 				return num;
 			}
 		}
