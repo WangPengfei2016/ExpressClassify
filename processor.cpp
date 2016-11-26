@@ -243,7 +243,7 @@ string Processor::extract_phone(std::string path, int width, int height)
     cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
     adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
-    Mat closing = getStructuringElement(MORPH_RECT, Size(13, 1));
+    Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
     Mat opening = getStructuringElement(MORPH_RECT, Size(4, 2));
@@ -290,7 +290,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		if (center.y - area.height/2 > 3)
 		{
-			area.height += 4;
+			area.height += 5;
 		}
 
 		// 在原始图片中取出手机号
@@ -299,12 +299,13 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::warpAffine(gray, rotated, M, gray.size(), cv::INTER_CUBIC);
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
-		// 二值化，抑制干扰
-		if (candidate_region.rows > 18) {
-			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 6);
-		} else {
-			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 3, 3);
+		if (candidate_region.rows < 25)
+		{
+			resize(candidate_region, candidate_region, Size(), 1.5, 1.5, INTER_LANCZOS4);
 		}
+
+		// 二值化，抑制干扰
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 5);
 
 		// 精细过滤
 		if (!phone_classify(candidate_region))
@@ -320,8 +321,6 @@ string Processor::extract_phone(std::string path, int width, int height)
 			size_t pos = string::npos;
 			pos = path.find(num.substr(0, 11));
 			if (pos == string::npos) {
-				string name = "./phone/"+num+":"+to_string(rand())+".tif";
-				cv::imwrite(name, candidate_region);
 				return num;
 			}
 		}
