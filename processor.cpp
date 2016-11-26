@@ -75,14 +75,8 @@ bool phone_classify(Mat region)
         }
     }
 
-	if (final.width < 100 || final.width > 350)
-	{
-		return false;
-	}
-
     Mat hand(region, final);
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
-	//short changes[hand.rows][hand.cols];
     /* 记录每一行像素突变次数 */
 	short **changes = new short*[hand.rows];
 	for (int i = 0; i < hand.rows; i++) {
@@ -193,7 +187,7 @@ bool phone_classify(Mat region)
 	}
 	delete[] changes;
 
-    if (chars.size() < 10 || chars.size() > 20)
+    if (chars.size() < 10 || chars.size() > 18)
     {
         return false;
     }
@@ -258,13 +252,14 @@ string Processor::extract_phone(std::string path, int width, int height)
     findContours(last, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
     sort(contours.begin(), contours.end(), comp);
 
+	int count = 0;
     for (int i = 0; i < contours.size(); ++i)
     {
+		int limit = rect.area();
 
 		cv::RotatedRect rotatedRect = cv::minAreaRect(contours[i]);
 
 		float angle = rotatedRect.angle;
-
 		Size area = rotatedRect.size;
 		Point center = rotatedRect.center;
 
@@ -277,12 +272,12 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 第一次粗过滤
 		// 根据形状和面积过滤
-		if (area.height < rect.height / 8 || area.height > rect.height/2 || area.height > 40)
-		{
+		if (area.area() > limit*0.1 || area.area() < limit*0.01 || area.width < 5*area.height) {
 			continue;
 		}
 
 
+		// 扩展切割区域，提高识别率
 		if (center.x - area.width/2 > 6)
 		{
 			area.width += 6;
@@ -309,12 +304,14 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 
 		// 开始识别手机号
+		count++;
 		string num = recognize_num(candidate_region);
 		if (num != "NO")
 		{
 			size_t pos = string::npos;
 			pos = path.find(num.substr(0, 11));
 			if (pos == string::npos) {
+				cout<< "try times " << count <<endl;
 				return num;
 			}
 		}
@@ -364,7 +361,6 @@ string Processor::recognize_num(Mat image)
     // 根据手机号特征，判别识别结果是否为手机号
     size_t length = outText.length();
 
-	cout<< "outText" << outText <<endl;
     if (length > 15 || length < 11)
     {
         return "NO";
