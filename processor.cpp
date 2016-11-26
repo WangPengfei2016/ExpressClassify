@@ -274,10 +274,13 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 第一次粗过滤
 		// 根据形状和面积过滤
-		if (area.area() > limit*0.01 || area.area() < limit*0.001  || area.width < 5*area.height) {
+		if (area.area() > limit*0.1 || area.area() < limit*0.001  || area.width < 5*area.height) {
 			continue;
 		}
 
+		if (area.width > 300 || area.width < 50) {
+			continue;
+		}
 
 		// 扩展切割区域，提高识别率
 		if (center.x - area.width/2 > 6)
@@ -297,8 +300,9 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 13, 8);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 3, 5);
 
+		show("adaptiveThreshold", candidate_region);
 		// 精细过滤
 		if (!phone_classify(candidate_region))
 		{
