@@ -127,6 +127,10 @@ bool phone_classify(Mat region)
         }
     }
 
+	if (!rectList.size()) {
+		return false;
+	}
+
     meanWidth /= rectList.size();
 	list<Rect> chars;
     for (list<Rect>::iterator rect = rectList.begin(); rect != rectList.end(); ++rect) {
@@ -257,62 +261,63 @@ string Processor::extract_phone(std::string path, int width, int height)
     for (int i = 0; i < contours.size(); ++i)
     {
 
-        Rect candidate_rect = boundingRect(contours[i]);
+		cv::RotatedRect rotatedRect = cv::minAreaRect(contours[i]);
 
-        // 第一次粗过滤
-        // 根据形状和面积过滤
-		if (candidate_rect.height < rect.height / 8 || candidate_rect.height > rect.height/2 || candidate_rect.height > 40)
+		float angle = rotatedRect.angle;
+
+		Size area = rotatedRect.size;
+		Point center = rotatedRect.center;
+
+		if (angle < -45.) {
+			angle += 90.0;
+			int tmp = area.width;
+			area.width = area.height;
+			area.height = tmp;
+		}
+
+		// 第一次粗过滤
+		// 根据形状和面积过滤
+		if (area.height < rect.height / 8 || area.height > rect.height/2 || area.height > 40)
 		{
 			continue;
 		}
 
-		// 根据边缘位置过滤
-		if (candidate_rect.x < 20 || candidate_rect.y < 20)
+
+		if (center.x - area.width/2 > 6)
 		{
-			continue;
-		}
-		if ((cols-candidate_rect.x-candidate_rect.width)< 20 || (rows-candidate_rect.y-candidate_rect.height) < 20)
-		{
-			continue;
+			area.width += 6;
 		}
 
-		if (candidate_rect.x > 3)
+		if (center.y - area.height/2 > 3)
 		{
-			candidate_rect.x -= 3;
-			candidate_rect.width += 6;
+			area.height += 6;
 		}
 
-		if (candidate_rect.y > 3)
-		{
-			candidate_rect.x -=3;
-			candidate_rect.width += 6;
-		}
+		// 在原始图片中取出手机号
+		Mat M, rotated, candidate_region;
+		M = cv::getRotationMatrix2D(rotatedRect.center, angle, 1.0);
+		cv::warpAffine(gray, rotated, M, gray.size(), cv::INTER_CUBIC);
+		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
-        // 在原始图片中取出手机号
-        Mat orgin_mat(gray, candidate_rect);
-        Mat candidate_region = orgin_mat.clone();
-
-        // 二值化，抑制干扰
+		// 二值化，抑制干扰
 		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 13, 8);
-        // 精细过滤
-        if (!phone_classify(candidate_region))
-        {
-            continue;
-        }
 
-		cv::pyrUp(candidate_region, candidate_region, Size(candidate_region.cols*2, candidate_region.rows*2));
-		cv::threshold(candidate_region, candidate_region, 0, 255, cv::THRESH_OTSU | cv::THRESH_BINARY);
+		// 精细过滤
+		if (!phone_classify(candidate_region))
+		{
+			continue;
+		}
 
-        // 开始识别手机号
-        string num = recognize_num(candidate_region);
-        if (num != "NO")
-        {
+		// 开始识别手机号
+		string num = recognize_num(candidate_region);
+		if (num != "NO")
+		{
 			size_t pos = string::npos;
 			pos = path.find(num.substr(0, 11));
 			if (pos == string::npos) {
 				return num;
 			}
-        }
+		}
     }
 
     // 识别失败
@@ -359,6 +364,7 @@ string Processor::recognize_num(Mat image)
     // 根据手机号特征，判别识别结果是否为手机号
     size_t length = outText.length();
 
+	cout<< "outText" << outText <<endl;
     if (length > 15 || length < 11)
     {
         return "NO";
