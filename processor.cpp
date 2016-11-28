@@ -187,7 +187,7 @@ bool phone_classify(Mat region)
 	}
 	delete[] changes;
 
-    if (chars.size() < 10 || chars.size() > 18)
+    if (chars.size() < 10 || chars.size() > 19)
     {
         return false;
     }
