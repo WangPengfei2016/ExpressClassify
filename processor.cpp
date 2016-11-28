@@ -225,7 +225,7 @@ Processor::~Processor()
 **/
 string Processor::extract_phone(std::string path, int width, int height)
 {
-    Mat img = imread(path);
+    Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
 
 	if (!img.data)
 	{
@@ -236,7 +236,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 	Size crop = Size(width, height);
 
     // 初始化变量
-    Mat baup, gray, thr, med, last;
+    Mat baup, thr, med, last;
 
 	// 图片宽
 	uint cols = img.cols;
@@ -244,8 +244,10 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 	baup = img.clone();
 
-    cvtColor(baup, gray, cv::COLOR_RGB2GRAY);
-    adaptiveThreshold(gray, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
+	Mat kernel = (Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
+	cv::filter2D(baup, baup, baup.depth(), kernel);
+	cv::blur(baup, baup, Size(3, 3));
+    adaptiveThreshold(baup, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
     Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
@@ -289,7 +291,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		// 扩展切割区域，提高识别率
 		if (center.x - area.width/2 > 6)
 		{
-			area.width += 8;
+			area.width += 12;
 		}
 
 		if (center.y - area.height/2 > 3)
@@ -300,7 +302,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		// 在原始图片中取出手机号
 		Mat M, rotated, candidate_region;
 		M = cv::getRotationMatrix2D(rotatedRect.center, angle, 1.0);
-		cv::warpAffine(gray, rotated, M, gray.size(), cv::INTER_CUBIC);
+		cv::warpAffine(baup, rotated, M, baup.size(), cv::INTER_CUBIC);
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
 		if (candidate_region.rows < 25)
@@ -309,12 +311,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 5);
-		//show("adaptiveThreshold", candidate_region);
-		Mat filter = getStructuringElement(MORPH_RECT, Size(2, 2));
-		cv::morphologyEx(candidate_region, candidate_region, MORPH_OPEN, filter);
-		//show("filter", candidate_region);
-
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 5);
 		// 精细过滤
 		if (!phone_classify(candidate_region))
 		{
@@ -360,7 +357,7 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 60) {
+			if (conf < 50) {
 				continue;
 			}
             confidence.push_back(conf);
@@ -433,7 +430,6 @@ finally:
     }
     // 平均可信度
     average_confidence = total / 11;
-
     if (average_confidence > 75)
     {
         return outText.substr(front, front + 11)+":"+to_string(average_confidence);
