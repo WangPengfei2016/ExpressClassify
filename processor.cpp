@@ -289,7 +289,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		// 扩展切割区域，提高识别率
 		if (center.x - area.width/2 > 6)
 		{
-			area.width += 6;
+			area.width += 8;
 		}
 
 		if (center.y - area.height/2 > 3)
@@ -310,6 +310,10 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 二值化，抑制干扰
 		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 5);
+		//show("adaptiveThreshold", candidate_region);
+		Mat filter = getStructuringElement(MORPH_RECT, Size(2, 2));
+		cv::morphologyEx(candidate_region, candidate_region, MORPH_OPEN, filter);
+		//show("filter", candidate_region);
 
 		// 精细过滤
 		if (!phone_classify(candidate_region))
@@ -356,7 +360,7 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 40) {
+			if (conf < 60) {
 				continue;
 			}
             confidence.push_back(conf);
