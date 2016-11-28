@@ -356,8 +356,7 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 65)
-			{
+			if (conf < 40) {
 				continue;
 			}
             confidence.push_back(conf);
