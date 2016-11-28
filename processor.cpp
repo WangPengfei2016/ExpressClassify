@@ -41,13 +41,13 @@ bool phone_classify(Mat region)
     for (int i = 1; i < region.rows; i++)
     {
         if (!block) {
-            if (v[i] != 0 && v[i] < region.cols*0.8)
+            if (v[i] != 0 && v[i] < region.cols*0.6)
             {
                 block = true;
                 start = i;
             }
             continue;
-		} else if (v[i] > region.cols*0.8) {
+		} else if (v[i] > region.cols*0.6) {
 			block = false;
 			start = 0;
 			continue;
@@ -75,6 +75,10 @@ bool phone_classify(Mat region)
             final.height = rect->height;
         }
     }
+
+	if (final.area() ==0 ) {
+		return false;
+	}
 
     Mat hand(region, final);
     /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
