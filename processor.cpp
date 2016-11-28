@@ -246,7 +246,7 @@ string Processor::extract_phone(std::string path, int width, int height)
     Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
-    Mat opening = getStructuringElement(MORPH_RECT, Size(4, 2));
+    Mat opening = getStructuringElement(MORPH_RECT, Size(4, 4));
     morphologyEx(med, last, MORPH_OPEN, opening);
 
     // 获取所有轮廓，根据轮廓面积排序
