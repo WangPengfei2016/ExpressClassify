@@ -121,8 +121,10 @@ bool phone_classify(Mat region)
         }
         else if (a[k] > a[k+1] && a[k+1] == 0)
         {
-            rectList.push_back(Rect(Point(front, 0), Size(k-front+1, hand.rows)));
-            meanWidth += k-front+1;
+			if (k-front+1 > 2) {
+				rectList.push_back(Rect(Point(front, 0), Size(k-front+1, hand.rows)));
+				meanWidth += k-front+1;
+			}
         }
     }
 
@@ -173,7 +175,7 @@ bool phone_classify(Mat region)
 
 			}
 
-			if (a[min_pos+offset] < 4){
+			if (min_pos+offset < hand.rows && a[min_pos+offset] < 4){
 				Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
 				Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
 				chars.push_back(first);
@@ -296,7 +298,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		if (center.y - area.height/2 > 3)
 		{
-			area.height += 5;
+			area.height += 4;
 		}
 
 		// 在原始图片中取出手机号
@@ -312,6 +314,9 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 二值化，抑制干扰
 		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 5);
+
+		// 图片添加边框，提高识别率
+		cv::copyMakeBorder(candidate_region, candidate_region, 5, 5, 5, 5, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
 		// 精细过滤
 		if (!phone_classify(candidate_region))
 		{
