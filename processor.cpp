@@ -9,8 +9,15 @@ void show(string name, Mat img)
 {
     cv::namedWindow(name, cv::WINDOW_AUTOSIZE);
     cv::imshow(name, img);
-    cv::waitKey();
-    cv::destroyAllWindows();
+    int key =  cv::waitKey();
+	if (key == 115)
+	{
+		cv::imwrite("./phone.bmp", img);
+	}
+	else
+	{
+		cv::destroyWindow(name);
+	}
 }
 
 bool comp(const vector<Point> key1, const vector<Point> key2)
@@ -248,6 +255,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 	Mat kernel = (Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
 	cv::filter2D(baup, baup, baup.depth(), kernel);
+
 	cv::blur(baup, baup, Size(3, 3));
     adaptiveThreshold(baup, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
@@ -317,6 +325,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 		// 图片添加边框，提高识别率
 		cv::copyMakeBorder(candidate_region, candidate_region, 5, 5, 5, 5, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+
 		// 精细过滤
 		if (!phone_classify(candidate_region))
 		{
@@ -362,7 +371,7 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 50) {
+			if (conf < 65) {
 				continue;
 			}
             confidence.push_back(conf);
