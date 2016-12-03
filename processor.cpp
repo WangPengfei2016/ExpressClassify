@@ -448,7 +448,8 @@ finally:
     average_confidence = total / 11;
     if (average_confidence > 75)
     {
-        return outText.substr(front, front + 11)+":"+to_string(average_confidence);
+		string substr = outText.substr(front, front+11);
+        return substr+":"+to_string(average_confidence);
     }
     else
     {
