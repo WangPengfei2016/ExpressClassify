@@ -20,191 +20,140 @@ void show(string name, Mat img)
 	}
 }
 
-bool comp(const vector<Point> key1, const vector<Point> key2)
+static bool comp(const vector<Point> key1, const vector<Point> key2)
 {
     // 比较轮廓面积
     return contourArea(key1) > contourArea(key2);
 }
 
 
-bool phone_classify(Mat region)
+static void filter_noise(Mat image)
 {
-    list<Rect> faultage;
-    /* 获取垂直方向投影，确定文本行 */
-    int *v = new int[region.rows]();
-    for (int i = 0; i <region.rows; ++i)
-    {
-        uchar *p = region.ptr<uchar>(i);
-        for (int j = 0; j < region.cols; ++j)
-        {
-            if (p[j] == 255) {
-                v[i]++;
-            }
-        }
-    }
+    vector< vector<Point> > subContours;
+	vector< vector<Point> >::iterator iterator;
+    findContours(image, subContours, RETR_LIST, CHAIN_APPROX_SIMPLE);
 
-    int start = 0;
-    bool block = false;
-    for (int i = 1; i < region.rows; i++)
-    {
-        if (!block) {
-            if (v[i] != 0 && v[i] < region.cols*0.6)
-            {
-                block = true;
-                start = i;
-            }
-            continue;
-		} else if (v[i] > region.cols*0.6) {
-			block = false;
-			start = 0;
+	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
+	{
+		cv::Rect rect = cv::boundingRect(*iterator);
+		if (rect.area() < 40 || rect.width < 4)
+		{
+			Mat tmp(image, rect);
+			tmp -= tmp;
+		}
+
+	}
+}
+
+static bool phone_classify(Mat region, Mat* outArrary)
+{
+	Rect line;
+	int height = 0;
+	for (int i = 0; i < region.rows; i++)
+	{
+		int nonZero = countNonZero(region.row(i));
+
+		if (nonZero)
+		{
+			if (nonZero < region.cols*0.8)
+			{
+				height += 1;
+			}
+		   	else
+		   	{
+				height = 0;
+			}
+		}
+		else if (!nonZero && height)
+		{
+
+			if (line.height < height)
+			{
+				line.y = i-height;
+				line.width = region.cols;
+				line.height = height;
+			}
+			height = 0;
+
+		}
+
+	}
+
+	if (line.area() == 0)
+	{
+		line.width = region.cols;
+		line.height = region.rows;
+	}
+
+	Mat mainLine(region, line);
+
+	int width = 0;
+	Mat vec = Mat::zeros(1, mainLine.cols, CV_8UC1);
+	vector<Vec2s> chars;
+	for (int i = 0; i < mainLine.cols; i++)
+	{
+		int nonZero = countNonZero(mainLine.col(i));
+
+		vec.at<uchar>(0, i) = nonZero;
+
+		if (nonZero)
+		{
+			width++;
+		}
+		else if (!nonZero && width)
+		{
+			if (width < 2)
+			{
+				vec.at<uchar>(0, i) = 0;
+				width = 0;
+			}
+			else
+			{
+				chars.push_back(Vec2s(i-width, i-1));
+				width = 0;
+			}
+		}
+	}
+
+
+	if (!chars.size())
+	{
+		return false;
+	}
+
+	int amonut = 0;
+	vector<char> outText;
+	int meanWidth = countNonZero(vec)/chars.size();
+	for (vector<Vec2s>::iterator item = chars.begin(); item != chars.end(); item++)
+	{
+
+		short start = (*item)[0], end = (*item)[1];
+		int width = end-start;
+
+		Mat charImg = mainLine.colRange(start, end);
+
+		if (cv::countNonZero(charImg) < 30 || width < 3)
+		{
 			continue;
 		}
-        if (v[i] < 10)
-        {
-            Rect rect;
-            rect.y = start;
-            rect.height = i-start;
-            rect.width = region.cols;
-            faultage.push_back(rect);
-            start = 0;
-            block = false;
-        }
-    }
 
-    Rect final;
-    for (list<Rect>::iterator rect = faultage.begin(); rect != faultage.end(); rect++)
-    {
-        if (final.height < rect->height)
-        {
-            final.x = rect->x;
-            final.y = rect->y;
-            final.width = rect->width;
-            final.height = rect->height;
-        }
-    }
+		if (width > meanWidth*1.5) {
+			amonut += 2;
+		}
+		else
+		{
+			amonut++;
+		}
 
-	if (final.area() ==0 ) {
+	}
+
+	if (amonut < 10 || amonut > 17)
+	{
 		return false;
 	}
 
-    Mat hand(region, final);
-    /* 获取水平方向投影，取得垂直最大像素个数已确定分割字符阈值 */
-    /* 记录每一行像素突变次数 */
-	short **changes = new short*[hand.rows];
-	for (int i = 0; i < hand.rows; i++) {
-		changes[i] = new short[hand.cols];
-	}
-    int *a = new int[hand.cols]();
-    uint last_pix = 0;
-    // 行遍历
-    for (int i = 0; i < hand.rows; ++i)
-    {
-        uchar *p = hand.ptr<uchar>(i);
-        // 列遍历
-        for (int j = 0; j < hand.cols; ++j)
-        {
-            if (p[j] == 255)
-            {
-                a[j]++;
-            }
-            if (p[j] != last_pix)
-            {
-                last_pix = p[j];
-				changes[i][j] = 1;
-			} else {
-				changes[i][j] = 0;
-			}
-        }
-    }
-
-    uint meanWidth = 0;
-    int front = 0;
-    list<Rect> rectList;
-    for (int k = 0; k < hand.cols - 1; ++k)
-    {
-        if (a[k] ==0 && a[k+1] > a[k])
-        {
-            front = k;
-        }
-        else if (a[k] > a[k+1] && a[k+1] == 0)
-        {
-			if (k-front+1 > 2) {
-				rectList.push_back(Rect(Point(front, 0), Size(k-front+1, hand.rows)));
-				meanWidth += k-front+1;
-			}
-        }
-    }
-
-	if (!rectList.size()) {
-		return false;
-	}
-
-    meanWidth /= rectList.size();
-	list<Rect> chars;
-    for (list<Rect>::iterator rect = rectList.begin(); rect != rectList.end(); ++rect) {
-
-		int offset = rect->x;
-		float change = 0.0;
-		int sum = 0;
-
-		for(int i = rect->y; i < rect->y+rect->height; i++)
-		{
-			for (int j = rect->x; j < rect->x+rect->width; j++)
-			{
-				sum += changes[i][j];
-			}
-
-		}
-
-		change = sum*1.0/rect->height;
-		if (rect->width > meanWidth*2 && change/2 < 6)
-		{
-			short count;
-			int *extr = a+rect->x;
-			list<int> tmp;
-
-			for (int i = 1; i < rect->width-1; ++i)
-			{
-				if (extr[i] < extr[i-1] && extr[i] < extr[i+1])
-				{
-					tmp.push_back(i);
-				}
-			}
-
-			int offset = rect->x;
-			int min_pos = *(tmp.begin());
-			for(list<int>::iterator item = tmp.begin(); item != tmp.end(); item++)
-			{
-				if (a[min_pos+offset] > a[offset+(*item)])
-				{
-					min_pos = *item;
-				}
-
-			}
-
-			if (min_pos+offset < hand.rows && a[min_pos+offset] < 4){
-				Rect first(Point(rect->x, 0), Size(min_pos, rect->height));
-				Rect second(Point(rect->x+min_pos, 0), Size(rect->width-min_pos, rect->height));
-				chars.push_back(first);
-				chars.push_back(second);
-			}
-		} else if (change < 4){
-			chars.push_back(*rect);
-		} else {
-			chars.clear();
-		}
-    }
-
-	for (int i = 1; i < hand.rows; i++) {
-		delete[] changes[i];
-	}
-	delete[] changes;
-
-    if (chars.size() < 10 || chars.size() > 19)
-    {
-        return false;
-    }
-    return true;
+	mainLine.copyTo(*outArrary);
+	return true;
 }
 
 Processor::Processor(const char *path)
@@ -238,7 +187,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
 	if (!img.data)
 	{
-		cout<< "no data" <<endl;
+		cout<< "can not find any image !!!" <<endl;
 		return "";
 	}
 
@@ -256,7 +205,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 	Mat kernel = (Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
 	cv::filter2D(baup, baup, baup.depth(), kernel);
 
-	cv::blur(baup, baup, Size(3, 3));
+	cv::medianBlur(baup, baup, 3);
     adaptiveThreshold(baup, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
     Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
@@ -270,7 +219,6 @@ string Processor::extract_phone(std::string path, int width, int height)
     findContours(last, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
     sort(contours.begin(), contours.end(), comp);
 
-	int count = 0;
     for (int i = 0; i < contours.size(); ++i)
     {
 		int limit = crop.area();
@@ -293,48 +241,48 @@ string Processor::extract_phone(std::string path, int width, int height)
 		if (area.area() > limit*0.01 || area.area() < limit*0.001  || area.width < 5*area.height) {
 			continue;
 		}
-
 		if (area.width > 300 || area.width < 50) {
 			continue;
 		}
 
 		// 扩展切割区域，提高识别率
-		if (center.x - area.width/2 > 6)
+		if (center.x - area.width/2 > 4)
 		{
-			area.width += 12;
+			area.width += 8;
 		}
-
 		if (center.y - area.height/2 > 3)
 		{
 			area.height += 4;
 		}
 
-		// 在原始图片中取出手机号
+		// 在原始图片中取出手机号, 旋转
 		Mat M, rotated, candidate_region;
 		M = cv::getRotationMatrix2D(rotatedRect.center, angle, 1.0);
 		cv::warpAffine(baup, rotated, M, baup.size(), cv::INTER_CUBIC);
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
-		if (candidate_region.rows < 25)
+		// 放大图像
+		if (candidate_region.rows < 25 || candidate_region.cols < 120)
 		{
-			resize(candidate_region, candidate_region, Size(), 1.5, 1.5, INTER_LANCZOS4);
+			resize(candidate_region, candidate_region, Size(), 1.8, 1.8, INTER_LANCZOS4);
 		}
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 7, 5);
-
-		// 图片添加边框，提高识别率
-		cv::copyMakeBorder(candidate_region, candidate_region, 5, 5, 5, 5, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 5);
+		filter_noise(candidate_region);
 
 		// 精细过滤
-		if (!phone_classify(candidate_region))
+		cv::Mat numMat;
+		if (!phone_classify(candidate_region, &numMat))
 		{
 			continue;
 		}
 
+		// 图片添加边框，提高识别率
+		cv::copyMakeBorder(numMat, numMat, 5, 5, 5, 5, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+
 		// 开始识别手机号
-		count++;
-		string num = recognize_num(candidate_region);
+		string num = recognize_num(numMat);
 		if (num != "NO")
 		{
 			size_t pos = string::npos;
