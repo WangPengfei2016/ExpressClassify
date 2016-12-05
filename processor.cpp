@@ -36,13 +36,14 @@ static void filter_noise(Mat image)
 	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
 	{
 		cv::Rect rect = cv::boundingRect(*iterator);
-		if (rect.area() < 40 || rect.width < 4)
+		if (rect.area() < 75 || rect.width < 4)
 		{
 			Mat tmp(image, rect);
 			tmp -= tmp;
 		}
 
 	}
+
 }
 
 static bool phone_classify(Mat region, Mat* outArrary)
@@ -137,7 +138,8 @@ static bool phone_classify(Mat region, Mat* outArrary)
 			continue;
 		}
 
-		if (width > meanWidth*1.5) {
+		if (width > meanWidth*1.5)
+		{
 			amonut += 2;
 		}
 		else
@@ -185,27 +187,27 @@ string Processor::extract_phone(std::string path, int width, int height)
 {
     Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
 
-	if (!img.data)
-	{
-		cout<< "can not find any image !!!" <<endl;
-		return "";
-	}
+    if (!img.data)
+    {
+	cout<< "can not find any image !!!" <<endl;
+	return "";
+    }
 
-	Size crop = Size(width, height);
+    Size crop = Size(width, height);
 
     // 初始化变量
     Mat baup, thr, med, last;
 
-	// 图片宽
-	uint cols = img.cols;
-	uint rows = img.rows;
+    // 图片宽
+    uint cols = img.cols;
+    uint rows = img.rows;
 
-	baup = img.clone();
+    baup = img.clone();
 
-	Mat kernel = (Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
-	cv::filter2D(baup, baup, baup.depth(), kernel);
+    Mat kernel = (Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
+    cv::filter2D(baup, baup, baup.depth(), kernel);
 
-	cv::medianBlur(baup, baup, 3);
+    cv::medianBlur(baup, baup, 3);
     adaptiveThreshold(baup, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
     Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
@@ -396,7 +398,7 @@ finally:
     average_confidence = total / 11;
     if (average_confidence > 75)
     {
-		string substr = outText.substr(front, front+11);
+		string substr = outText.substr(front, 11);
         return substr+":"+to_string(average_confidence);
     }
     else
