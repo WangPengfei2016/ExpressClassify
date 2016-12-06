@@ -36,7 +36,7 @@ static void filter_noise(Mat image)
 	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
 	{
 		cv::Rect rect = cv::boundingRect(*iterator);
-		if (rect.area() < 70 && rect.width < 7)
+		if (rect.area() < 60 && rect.width < 5)
 		{
 			Mat tmp(image, rect);
 			tmp -= tmp;
@@ -270,7 +270,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 7);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 6);
 		filter_noise(candidate_region);
 
 		// 精细过滤
@@ -321,10 +321,8 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 65 && confidence.size() > 0 && confidence.back() < 65)
+			if (conf < 65)
 			{
-				outText.clear();
-				confidence.clear();
 				continue;
 			}
             confidence.push_back(conf);
