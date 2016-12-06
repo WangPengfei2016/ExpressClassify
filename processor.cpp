@@ -36,7 +36,7 @@ static void filter_noise(Mat image)
 	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
 	{
 		cv::Rect rect = cv::boundingRect(*iterator);
-		if (rect.area() < 30 || rect.width < 4)
+		if (rect.area() < 70 && rect.width < 7)
 		{
 			Mat tmp(image, rect);
 			tmp -= tmp;
@@ -213,7 +213,7 @@ string Processor::extract_phone(std::string path, int width, int height)
     Mat closing = getStructuringElement(MORPH_RECT, Size(14, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
-    Mat opening = getStructuringElement(MORPH_RECT, Size(4, 4));
+    Mat opening = getStructuringElement(MORPH_RECT, Size(4, 2));
     morphologyEx(med, last, MORPH_OPEN, opening);
 
     // 获取所有轮廓，根据轮廓面积排序
@@ -270,8 +270,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 13, 5);
-
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 7);
 		filter_noise(candidate_region);
 
 		// 精细过滤
@@ -376,7 +375,7 @@ string Processor::recognize_num(Mat image)
         }
 		else if (outText[front + 1] == '7')
 		{
-			if (outText[front + 2] == '8' || outText[front + 2] == '6' || outText[front +2] == '0')
+			if (outText[front + 2] == '8' || outText[front + 2] == '6' || outText[front +2] == '0' || outText[front+2] == '7')
 				findPhone = true;
 			goto finally;
 		}
@@ -386,6 +385,7 @@ string Processor::recognize_num(Mat image)
 finally:
     // 清空识别数据
     api->Clear();
+	api->ClearAdaptiveClassifier();
 
     float average_confidence, total = 0;
     if (findPhone)
