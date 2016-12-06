@@ -10,13 +10,13 @@ void show(string name, Mat img)
     cv::namedWindow(name, cv::WINDOW_AUTOSIZE);
     cv::imshow(name, img);
     int key =  cv::waitKey();
-	if (key == 115)
+    if (key == 115)
 	{
-		cv::imwrite("./phone.bmp", img);
+	    cv::imwrite("./phone.bmp", img);
 	}
 	else
 	{
-		cv::destroyWindow(name);
+	    cv::destroyWindow(name);
 	}
 }
 
@@ -31,12 +31,12 @@ static void filter_noise(Mat image)
 {
     vector< vector<Point> > subContours;
 	vector< vector<Point> >::iterator iterator;
-    findContours(image, subContours, RETR_LIST, CHAIN_APPROX_SIMPLE);
+    findContours(image.clone(), subContours, RETR_LIST, CHAIN_APPROX_SIMPLE);
 
 	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
 	{
 		cv::Rect rect = cv::boundingRect(*iterator);
-		if (rect.area() < 75 || rect.width < 4)
+		if (rect.area() < 30 || rect.width < 4)
 		{
 			Mat tmp(image, rect);
 			tmp -= tmp;
@@ -189,8 +189,8 @@ string Processor::extract_phone(std::string path, int width, int height)
 
     if (!img.data)
     {
-	cout<< "can not find any image !!!" <<endl;
-	return "";
+		cout<< "can not find any image !!!" <<endl;
+		return "";
     }
 
     Size crop = Size(width, height);
@@ -210,7 +210,7 @@ string Processor::extract_phone(std::string path, int width, int height)
     cv::medianBlur(baup, baup, 3);
     adaptiveThreshold(baup, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 20);
 
-    Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
+    Mat closing = getStructuringElement(MORPH_RECT, Size(14, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
     Mat opening = getStructuringElement(MORPH_RECT, Size(4, 4));
@@ -270,7 +270,8 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 5);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 13, 5);
+
 		filter_noise(candidate_region);
 
 		// 精细过滤
@@ -321,7 +322,8 @@ string Processor::recognize_num(Mat image)
         do
         {
             float conf = ri->Confidence(level);
-			if (conf < 65 && confidence.size() > 0 && confidence.back() < 65) {
+			if (conf < 65 && confidence.size() > 0 && confidence.back() < 65)
+			{
 				outText.clear();
 				confidence.clear();
 				continue;
@@ -399,8 +401,8 @@ finally:
     if (average_confidence > 75)
     {
 		string substr = outText.substr(front, 11);
-        return substr+":"+to_string(average_confidence);
-    }
+		return substr+":"+to_string(average_confidence);
+	}
     else
     {
         return "NO";
