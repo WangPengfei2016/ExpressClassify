@@ -1,6 +1,8 @@
 #include "processor.h"
 #include <iostream>
 #include <stdlib.h>
+#include <algorithm>
+#include <stack>
 
 using namespace cv;
 using namespace std;
@@ -36,7 +38,7 @@ static void filter_noise(Mat image)
 	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
 	{
 		cv::Rect rect = cv::boundingRect(*iterator);
-		if (rect.area() < 60 && rect.width < 5)
+		if (rect.area() < 60 && rect.width < 8)
 		{
 			Mat tmp(image, rect);
 			tmp -= tmp;
@@ -44,6 +46,23 @@ static void filter_noise(Mat image)
 
 	}
 
+}
+
+static short search_minimum(short rec[], short size)
+{
+	for (int i = 1; i < size-1; i++)
+	{
+		cout<< rec[i]  <<endl;
+		if (rec[i] < rec[i-1] && rec[i] <= rec[i+1])
+		{
+			if (i > 8)
+			{
+				return i;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static bool phone_classify(Mat region, Mat* outArrary)
@@ -56,7 +75,7 @@ static bool phone_classify(Mat region, Mat* outArrary)
 
 		if (nonZero)
 		{
-			if (nonZero < region.cols*0.8)
+			if (nonZero < region.cols*0.7)
 			{
 				height += 1;
 			}
@@ -89,13 +108,15 @@ static bool phone_classify(Mat region, Mat* outArrary)
 	Mat mainLine(region, line);
 
 	int width = 0;
-	Mat vec = Mat::zeros(1, mainLine.cols, CV_8UC1);
-	vector<Vec2s> chars;
-	for (int i = 0; i < mainLine.cols; i++)
+	vector<short> widthArray;
+	stack<Vec2s> chars;
+	short cols[line.width];
+
+	for (int i = 0; i < line.width-1; i++)
 	{
 		int nonZero = countNonZero(mainLine.col(i));
-
-		vec.at<uchar>(0, i) = nonZero;
+		int nextNonZero = i < line.width-1? countNonZero(mainLine.col(i+1)): 0;
+		cols[i] = nonZero;
 
 		if (nonZero)
 		{
@@ -103,14 +124,14 @@ static bool phone_classify(Mat region, Mat* outArrary)
 		}
 		else if (!nonZero && width)
 		{
-			if (width < 2)
+			if (width < 10 && nextNonZero)
 			{
-				vec.at<uchar>(0, i) = 0;
-				width = 0;
+				width++;
 			}
 			else
 			{
-				chars.push_back(Vec2s(i-width, i-1));
+				widthArray.push_back(width);
+				chars.push(Vec2s(i-width, i-1));
 				width = 0;
 			}
 		}
@@ -124,27 +145,36 @@ static bool phone_classify(Mat region, Mat* outArrary)
 
 	int amonut = 0;
 	vector<char> outText;
-	int meanWidth = countNonZero(vec)/chars.size();
-	for (vector<Vec2s>::iterator item = chars.begin(); item != chars.end(); item++)
+	while (!chars.empty())
 	{
-
-		short start = (*item)[0], end = (*item)[1];
+		sort(widthArray.begin(), widthArray.end());
+		int median = widthArray[widthArray.size()/2];
+		Vec2s top = chars.top();
+		short start = top[0], end = top[1];
 		int width = end-start;
 
+		cout<< "width" << width <<endl;
 		Mat charImg = mainLine.colRange(start, end);
 
-		if (cv::countNonZero(charImg) < 30 || width < 3)
+		show("imgChar", charImg);
+		if (cv::countNonZero(charImg) < 60 || width < 8)
 		{
+			chars.pop();
 			continue;
 		}
 
-		if (width > meanWidth*1.5)
+		if (width > median*1.8)
 		{
-			amonut += 2;
+			short pos = search_minimum(cols+start, width);
+			short med = (top[1]+top[0])/2;
+			chars.pop();
+			chars.push(Vec2s(start, start+pos));
+			chars.push(Vec2s(start+pos+1, end));
 		}
 		else
 		{
 			amonut++;
+			chars.pop();
 		}
 
 	}
@@ -270,11 +300,17 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 
 		// 二值化，抑制干扰
-		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 6);
+		cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 7);
 		filter_noise(candidate_region);
 
 		// 精细过滤
 		cv::Mat numMat;
+		if (candidate_region.cols > 350)
+		{
+			continue;
+		}
+
+		show("img", candidate_region);
 		if (!phone_classify(candidate_region, &numMat))
 		{
 			continue;
@@ -284,6 +320,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::copyMakeBorder(numMat, numMat, 5, 5, 5, 5, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
 
 		// 开始识别手机号
+		show("reg", numMat);
 		string num = recognize_num(numMat);
 		if (num != "NO")
 		{
