@@ -28,7 +28,7 @@ private:
     // tesseract 识别程序接口
     tesseract::TessBaseAPI *api;
     // 识别手机号程序
-    string recognize_num(cv::Mat image);
+	string decodeNum(cv::Mat image);
 };
 
 
