@@ -34,6 +34,19 @@ static bool comp(const vector<Point> key1, const vector<Point> key2)
     return contourArea(key1) > contourArea(key2);
 }
 
+static Mat usm(Mat imgSrc)
+{
+	double sigma = 3;
+	int threshold = 0;
+	float amount = 1.0;
+	Mat imgBlurred, imgDst;
+	GaussianBlur(imgSrc, imgBlurred, Size(), sigma, sigma);
+	Mat lowContrastMask = abs(imgSrc-imgBlurred)<threshold;
+	imgDst = imgSrc*(1+amount)+imgBlurred*(-amount);
+	imgSrc.copyTo(imgDst, lowContrastMask);
+	return imgDst;
+}
+
 static void filterNoise(Mat image)
 {
 	int cols = image.cols;
@@ -44,7 +57,7 @@ static void filterNoise(Mat image)
 	for (iterator = subContours.begin(); iterator != subContours.end(); iterator++)
 	{
 		cv::Rect rect = cv::boundingRect(*iterator);
-		if (rect.area() < cols*cols/80 && rect.width < cols/40)
+		if (rect.area() < cols*cols/120 && rect.width < cols/30 && rect.height < 4)
 		{
 			Mat tmp(image, rect);
 			tmp -= tmp;
@@ -179,6 +192,7 @@ static list<Mat> phone_classify(Mat region)
 
 		if (cv::countNonZero(charImg) < median*median/4 || width < median/4)
 		{
+			cout<< "pop" <<endl;
 			chars.pop();
 			continue;
 		}
@@ -187,7 +201,7 @@ static list<Mat> phone_classify(Mat region)
 		{
 			short pos = searchMinimum(cols+start, width);
 
-			if (pos*1.0/width > 0.3 && pos*1.0/width < 0.7)
+			if (pos*1.0/width > 0.2 && pos*1.0/width < 0.8)
 			{
 				chars.pop();
 				chars.push(Range(start, start+pos+1));
@@ -314,12 +328,14 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::warpAffine(baup, rotated, M, baup.size(), cv::INTER_CUBIC);
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
+		candidate_region = usm(candidate_region);
 		// 放大图像
 		if (candidate_region.rows < 25 || candidate_region.cols < 120)
 		{
 			resize(candidate_region, candidate_region, Size(), 1.8, 1.8, INTER_CUBIC);
 		}
 
+		cout<< candidate_region.cols <<endl;
 		// 二值化，抑制干扰
 		if (candidate_region.cols < 150)
 		{
@@ -327,11 +343,11 @@ string Processor::extract_phone(std::string path, int width, int height)
 		}
 		else if(candidate_region.cols < 240)
 		{
-			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 5, 3);
+			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 7);
 		}
 		else
 		{
-			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 6);
+			cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 6);
 		}
 
 		filterNoise(candidate_region);
