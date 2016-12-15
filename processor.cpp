@@ -282,8 +282,8 @@ string Processor::extract_phone(std::string path, int width, int height)
 	}
 
 	// 二值化，抑制干扰
-	if (candidate_region.cols < 150) {
-	    cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 5, 2);
+	if (candidate_region.cols < 160) {
+	    cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 5, 3);
 	} else if (candidate_region.cols < 240) {
 	    cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 7);
 	} else {
