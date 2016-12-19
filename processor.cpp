@@ -14,12 +14,15 @@ void show(string name, Mat img)
     cv::imshow(name, img);
     char key = cv::waitKey();
     if (key >= '0' && key <= '9') {
+	Mat saveimg;
+	resize(img.clone(), saveimg, Size(10, 16), 0, 0, INTER_CUBIC);
+	threshold(saveimg, saveimg, 0, 255, THRESH_OTSU|THRESH_BINARY);
 	time_t result = time(nullptr);
 	stringstream stream;
 	stream << key;
 	string path = "/Users/lambda/Project/reglib/num/" + stream.str() + "/" + to_string(result) + ".bmp";
 	cout << "path " << path << endl;
-	imwrite(path, img);
+	imwrite(path, saveimg);
     } else {
 	cv::destroyWindow(name);
     }
@@ -31,6 +34,9 @@ static bool comp(const vector<Point> key1, const vector<Point> key2)
     return contourArea(key1) > contourArea(key2);
 }
 
+/**
+ * 文本锐化，抑制模糊
+**/
 static Mat usm(Mat imgSrc)
 {
     double sigma = 3;
@@ -44,16 +50,20 @@ static Mat usm(Mat imgSrc)
     return imgDst;
 }
 
+/**
+ * 根据轮廓面积关系过滤不符合要求的轮廓
+**/
 static void filterNoise(Mat image)
 {
     int cols = image.cols;
+	int rows = image.rows;
     vector<vector<Point> > subContours;
     vector<vector<Point> >::iterator iterator;
     findContours(image.clone(), subContours, RETR_LIST, CHAIN_APPROX_SIMPLE);
 
     for (iterator = subContours.begin(); iterator != subContours.end(); iterator++) {
 	cv::Rect rect = cv::boundingRect(*iterator);
-	if (rect.area() < cols * cols / 120 && rect.width < cols / 30 && rect.height < 4) {
+	if (rect.area() < cols * cols / 150 && rect.width < cols / 50 && rect.height < rows / 6) {
 	    Mat tmp(image, rect);
 	    tmp -= tmp;
 	}
@@ -80,102 +90,124 @@ static list<Mat> phone_classify(Mat region)
     list<Mat> blockList;
     Rect line;
     int height = 0;
-    for (int i = 0; i < region.rows; i++) {
-	int nonZero = countNonZero(region.row(i));
+    for (int i = 0; i < region.rows; i++)
+	{
+		int nonZero = countNonZero(region.row(i));
 
-	if (nonZero) {
-	    if (nonZero < region.cols * 0.8) {
-		height += 1;
-	    } else {
-		height = 0;
-	    }
-	} else if (!nonZero && height) {
+		if (nonZero)
+		{
+			if (nonZero < region.cols * 0.8)
+			{
+				height += 1;
+			}
+			else
+			{
+				height = 0;
+			}
+		}
+		else if (!nonZero && height)
+		{
+			if (line.height < height)
+			{
+				line.y = i - height;
+				line.width = region.cols;
+				line.height = height;
+			}
+			height = 0;
+		}
+    }
 
-	    if (line.height < height) {
-		line.y = i - height;
+    if (line.area() == 0)
+	{
 		line.width = region.cols;
-		line.height = height;
-	    }
-	    height = 0;
-	}
+		line.height = region.rows;
     }
 
-    if (line.area() == 0) {
-	line.width = region.cols;
-	line.height = region.rows;
-    }
-
-    if (line.height < 8) {
-	blockList.clear();
-	return blockList;
+    if (line.height < 8)
+	{
+		blockList.clear();
+		return blockList;
     }
 
     Mat mainLine(region, line);
-
     int width = 0;
-    vector<short> widthArray;
-    stack<Range> chars;
+	list<Range> chars;
     short* cols = new short[line.width];
 
-    for (int i = 0; i < line.width - 1; i++) {
-	int nonZero = countNonZero(mainLine.col(i));
-	int nextNonZero = i < line.width - 1 ? countNonZero(mainLine.col(i + 1)) : 0;
-	cols[i] = nonZero;
+    for (int i = 0; i < line.width - 1; i++)
+	{
+		int nonZero = countNonZero(mainLine.col(i));
+		int nextNonZero = i < line.width - 1 ? countNonZero(mainLine.col(i + 1)) : 0;
+		cols[i] = nonZero;
 
-	if (nonZero) {
-	    width++;
-	} else if (!nonZero && width) {
-	    if (width < 10 && nextNonZero) {
-		width++;
-	    } else {
-		widthArray.push_back(width);
-		chars.push(Range(i - width, i));
-		width = 0;
-	    }
-	}
+		if (nonZero)
+		{
+			width++;
+		}
+		else if (!nonZero && width)
+		{
+			if (width < 10 && nextNonZero)
+			{
+				width++;
+			}
+			else
+			{
+				chars.push_back(Range(i - width, i));
+				width = 0;
+			}
+		}
     }
 
-    if (!chars.size()) {
-	return blockList;
+    if (!chars.size())
+	{
+		return blockList;
     }
 
     vector<char> outText;
-    while (!chars.empty()) {
-	sort(widthArray.begin(), widthArray.end());
-	int median = widthArray[widthArray.size() / 2];
-	Range top = chars.top();
-	short start = top.start, end = top.end;
-	int width = end - start;
+    while (!chars.empty())
+	{
+		vector<short> widthArray;
+		for (list<Range>::iterator item = chars.begin(); item != chars.end(); item++)
+		{
+			short width = item->end - item->start;
+			widthArray.push_back(width);
+		}
+		sort(widthArray.begin(), widthArray.end());
+		int median = widthArray[widthArray.size() / 2];
+		Range top = chars.back();
+		short start = top.start, end = top.end;
+		int width = end - start;
 
-	Mat charImg = mainLine(Range::all(), top);
+		Mat charImg = mainLine(Range::all(), top);
 
-	if (width < median / 4) {
-	    chars.pop();
-	    continue;
-	}
+		if (cv::countNonZero(charImg) < median * median / 4 || width < median / 4)
+		{
+			chars.pop_back();
+			continue;
+		}
 
-	if (cv::countNonZero(charImg) < median * median / 4 || width < median / 4) {
-	    chars.pop();
-	    continue;
-	}
-
-	if (width > median * 1.9) {
-	    short pos = searchMinimum(cols + start, width);
-
-	    if (pos * 1.0 / width > 0.2 && pos * 1.0 / width < 0.8) {
-		chars.pop();
-		chars.push(Range(start, start + pos + 1));
-		chars.push(Range(start + pos + 1, end));
-	    } else {
-		cv::copyMakeBorder(charImg.clone(), charImg, 3, 3, 3, 3, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
-		blockList.push_front(charImg);
-		chars.pop();
-	    }
-	} else {
-	    cv::copyMakeBorder(charImg.clone(), charImg, 3, 3, 3, 3, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
-	    blockList.push_front(charImg);
-	    chars.pop();
-	}
+		if (width > median * 1.8 || width > line.height)
+		{
+			short pos = searchMinimum(cols + start, width);
+			if (width-pos > 8 && pos > 8)
+			{
+				chars.pop_back();
+				chars.push_back(Range(start, start + pos + 1));
+				chars.push_back(Range(start + pos + 1, end));
+			}
+			else
+			{
+				cv::copyMakeBorder(charImg.clone(), charImg, 3, 3, 3, 3, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+				blockList.push_front(charImg);
+				chars.pop_back();
+			}
+		}
+		else
+		{
+			cv::copyMakeBorder(charImg.clone(), charImg, 3, 3, 3, 3, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+			blockList.push_front(charImg);
+			chars.pop_back();
+		}
     }
 
     return blockList;
@@ -210,9 +242,10 @@ string Processor::extract_phone(std::string path, int width, int height)
 {
     Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
 
-    if (!img.data) {
-	cerr << "image is empty" << endl;
-	return "";
+    if (!img.data)
+	{
+		cerr << "image is empty" << endl;
+		return "";
     }
 
     Size crop = Size(width, height);
@@ -224,7 +257,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 
     adaptiveThreshold(baup, thr, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 11, 11);
 
-    Mat closing = getStructuringElement(MORPH_RECT, Size(12, 1));
+    Mat closing = getStructuringElement(MORPH_RECT, Size(13, 1));
     morphologyEx(thr, med, MORPH_CLOSE, closing);
 
     Mat opening = getStructuringElement(MORPH_RECT, Size(4, 4));
@@ -244,7 +277,8 @@ string Processor::extract_phone(std::string path, int width, int height)
 	Size area = rotatedRect.size;
 	Point center = rotatedRect.center;
 
-	if (angle < -45.) {
+	if (angle < -45.)
+	{
 	    angle += 90.0;
 	    int tmp = area.width;
 	    area.width = area.height;
@@ -287,7 +321,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 	} else if (candidate_region.cols < 240) {
 	    cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 7);
 	} else {
-	    cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 6);
+	    cv::adaptiveThreshold(candidate_region, candidate_region, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 9);
 	}
 
 	filterNoise(candidate_region);
@@ -322,11 +356,11 @@ string Processor::extract_phone(std::string path, int width, int height)
     return "";
 }
 
+/**
+ * 手机号数字识别程序
+ **/
 string Processor::decodeNum(Mat image)
 {
-    /**
-     * 手机号数字识别程序
-     **/
     string outText = "";
     bool findPhone = false;
     vector<float> confidence;
