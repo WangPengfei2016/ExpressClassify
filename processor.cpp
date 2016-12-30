@@ -1,21 +1,19 @@
 #include "processor.h"
 #include <algorithm>
-#include <ctime>
 #include <iostream>
+#include <sys/time.h>
 #include <stack>
-#include <stdlib.h>
 
 using namespace cv;
 using namespace std;
 
 void saveimg(Mat img)
 {
-    Mat saveimg;
-    resize(img.clone(), saveimg, Size(10, 16), 0, 0, INTER_CUBIC);
-    threshold(saveimg, saveimg, 0, 255, THRESH_OTSU | THRESH_BINARY);
-    time_t result = time(nullptr);
-    string path = "/Users/lambda/Project/reglib/num/" + to_string(result) + ".bmp";
-    imwrite(path, saveimg);
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	long timestamp = tp.tv_sec*1000+tp.tv_usec/1000;
+    string path = "/Users/lambda/Project/reglib/phone/" + to_string(timestamp) + ".bmp";
+    imwrite(path, img);
 }
 
 void show(string name, Mat img)
@@ -39,20 +37,13 @@ static bool comp(const vector<Point> key1, const vector<Point> key2)
     return contourArea(key1) > contourArea(key2);
 }
 
+
 /**
+ * 拉普拉斯算子增强
  * 文本锐化，抑制模糊
 **/
-static Mat usm(Mat imgSrc)
+static Mat laplaceOperator(Mat imgSrc)
 {
-    //double sigma = 3;
-    //int threshold = 0;
-    //float amount = 1.0;
-    //Mat imgBlurred, imgDst;
-    //GaussianBlur(imgSrc, imgBlurred, Size(), sigma, sigma);
-    //Mat lowContrastMask = abs(imgSrc - imgBlurred) < threshold;
-    //imgDst = imgSrc * (1 + amount) + imgBlurred * (-amount);
-    //imgSrc.copyTo(imgDst, lowContrastMask);
-    //return imgDst;
 	Mat imgEnhance;
 	Mat kernel = (Mat_<float>(3, 3) << 0, -1, 0, 0, 5, 0, 0, -1, 0);
 	filter2D(imgSrc, imgEnhance, imgSrc.depth(), kernel);
@@ -81,19 +72,20 @@ static void filterNoise(Mat image)
     }
 }
 
-static short searchMinimum(short rec[], short size)
+static short searchMinimum(short rec[], short size, short leter)
 {
     short pos = 0, value = 50;
+    short mean = size/leter;
     for (int i = 1; i < size - 1; i++)
     {
-		if (rec[i] < rec[i - 1] && rec[i] <= rec[i + 1])
-		{
-			if (value > rec[i])
-			{
-				pos = i;
-				value = rec[i];
-			}
-		}
+        if (rec[i] < rec[i - 1] && rec[i] <= rec[i + 1])
+        {
+            if ((value >= rec[i] && (abs(i-mean) < mean/3 || abs(size-i-mean) < mean/3)) || rec[i] <= 5)
+            {
+                pos = i;
+                value = rec[i];
+            }
+        }
     }
 
     return pos;
@@ -146,6 +138,7 @@ static list<Mat> phone_classify(Mat region)
     Mat mainLine(region, line);
     int width = 0;
     list<Range> chars;
+	vector<short> widthArray;
     short *cols = new short[line.width];
 
     for (int i = 0; i < line.width - 1; i++)
@@ -167,6 +160,7 @@ static list<Mat> phone_classify(Mat region)
 			else
 			{
 				chars.push_back(Range(i - width, i));
+				widthArray.push_back(width);
 				width = 0;
 			}
 		}
@@ -177,15 +171,16 @@ static list<Mat> phone_classify(Mat region)
 		return blockList;
     }
 
+	if (width)
+	{
+		chars.push_back(Range(line.width - width, line.width));
+		widthArray.push_back(width);
+		width = 0;
+	}
+
     vector<char> outText;
     while (!chars.empty())
     {
-		vector<short> widthArray;
-		for (list<Range>::iterator item = chars.begin(); item != chars.end(); item++)
-		{
-			short width = item->end - item->start;
-			widthArray.push_back(width);
-		}
 		sort(widthArray.begin(), widthArray.end());
 		int median = widthArray[widthArray.size() / 2];
 		Range top = chars.back();
@@ -194,20 +189,19 @@ static list<Mat> phone_classify(Mat region)
 
 		Mat charImg = mainLine(Range::all(), top);
 
-		if (width*width < median * median / 6 || width < median / 6)
-		{
-			chars.pop_back();
-			continue;
-		}
-
 		if (width > median * 1.8 || width > line.height)
 		{
-			short pos = searchMinimum(cols + start, width);
-			if (width - pos > 8 && pos > 8)
+            short factor = median < line.height? 1: (median/line.height*2);
+            short leter = ((float)width)/median*factor + 0.3;
+			short pos = searchMinimum(cols + start, width, leter);
+			if (pos)
 			{
 				chars.pop_back();
 				chars.push_back(Range(start, start + pos + 1));
 				chars.push_back(Range(start + pos + 1, end));
+				widthArray.pop_back();
+				widthArray.push_back(pos);
+				widthArray.push_back(width-pos);
 			}
 			else
 			{
@@ -224,6 +218,7 @@ static list<Mat> phone_classify(Mat region)
 		}
     }
 
+	delete [] cols;
     return blockList;
 }
 
@@ -328,7 +323,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 		cv::warpAffine(baup, rotated, M, baup.size(), cv::INTER_CUBIC);
 		cv::getRectSubPix(rotated, area, rotatedRect.center, candidate_region);
 
-		candidate_region = usm(candidate_region);
+		candidate_region = laplaceOperator(candidate_region);
 		// 放大图像
 		if (candidate_region.rows < 25 || candidate_region.cols < 120)
 		{
@@ -355,6 +350,7 @@ string Processor::extract_phone(std::string path, int width, int height)
 			continue;
 		}
 
+		show("candidate_region", candidate_region);
 		// 切割图像字符区域
 		list<Mat> blockList = phone_classify(candidate_region);
 		if (blockList.empty() || blockList.size() < 10 || blockList.size() > 16)
@@ -377,7 +373,8 @@ string Processor::extract_phone(std::string path, int width, int height)
 			pos = path.find(num.substr(0, 11));
 			if (pos == string::npos)
 			{
-			return num;
+				saveimg(combine);
+				return num;
 			}
 		}
     }
